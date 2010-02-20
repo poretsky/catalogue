@@ -1,0 +1,21 @@
+This disk has not been found in catalogue.
+You can register it filling the form below.
+
+The first three fields must be filled appropriately.
+
+Name: \name
+Total amount of disks in set: \set
+Disk number in set: \unit
+
+This field should be filled only for alien disks.
+Owner: \owner
+
+The next fields are not required, but recommended.
+The description should contain some additional information
+about disk content, it's length is not restricted.
+
+Category: \category
+Media type: \media
+Placement: \place
+
+Description: \description

@@ -1,0 +1,9 @@
+Name: \name
+Total amount of disks in set: \set
+Disk number in set: \unit
+Owner: \owner
+Category: \category
+Media type: \media
+Placement: \place
+
+Description: \description
