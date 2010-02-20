@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2006  Igor B. Poretsky
 
-;; Author: Igor B. Poretsky <master@goga.energo.ru>
+;; Author: Igor B. Poretsky <poretsky@mlbox.ru>
 ;; Keywords: database
 
 ;; This file is free software; you can redistribute it and/or modify
