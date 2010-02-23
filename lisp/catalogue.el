@@ -37,6 +37,13 @@
   :prefix "catalogue-"
   :group 'applications)
 
+(defcustom catalogue-database-language nil
+  "Language used for database display."
+  :type '(radio (const :tag "Examine environment" nil)
+                (const :tag "English" "en")
+                (const :tag "Russian" "ru"))
+  :group 'catalogue)
+
 (defcustom catalogue-database-file (expand-file-name "~/.catalogue/collection.dat")
   "*Catalogue database file."
   :type 'file
@@ -107,6 +114,43 @@ which should be used when guessing.")
 
 (defvar catalogue-empty-p nil
   "Catalogue emptiness indicator.")
+
+(defconst catalogue-category-names
+  '(("en"
+     (music . "Music")
+     (mp3-music . "Music (mp3)")
+     (mp3-audiobooks . "Audiobook (mp3)")
+     (video-dvd . "Films (DVD)")
+     (video-avi . "Films (avi)")
+     (video-ogm . "Films (ogm)")
+     (video-mpg . "Films (mpg)")
+     (software-deb . "Software (Debian Linux)")
+     (software-rpm . "Software (RH Linux)")
+     (software-fbsd . "Software (FreeBSD)")
+     (software-ms . "Software (MSDOS/Windows)")
+     (misc . "Miscellaneous"))
+    ("ru"
+     (music . "Музыка")
+     (mp3-music . "Музыка (mp3)")
+     (mp3-audiobook . "Аудиокниги (mp3)")
+     (video-dvd . "Фильмы (DVD)")
+     (video-avi . "Фильмы (avi)")
+     (video-ogm . "Фильмы (ogm)")
+     (video-mpg . "Фильмы (mpg)")
+     (software-deb . "Software (Debian Linux)")
+     (software-rpm . "Software (RH Linux)")
+     (software-fbsd . "Software (FreeBSD)")
+     (software-ms . "Software (MSDOS/Windows)")
+     (misc . "Разное")))
+  "Category names by language.")
+
+(defun catalogue-language ()
+  "get current database language as a valid two-letter code."
+  (or catalogue-database-language
+      (let ((lang (or (getenv "LANG") "")))
+        (cond
+         ((string-match "^ru_RU" lang) "ru")
+         (t "en")))))
 
 (defun catalogue-view-mode ()
   "Switch edit mode indicator off."
