@@ -3,7 +3,7 @@
 ;; Copyright (C) 2006  Igor B. Poretsky
 
 ;; Author: Igor B. Poretsky <poretsky@mlbox.ru>
-;; Keywords: database
+;; Keywords: database, media collection
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -681,23 +681,6 @@ With prefix argument apply the action to the entire disk set."
   (when (and (featurep 'emacspeak)
 	     (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
-
-
-;;; Key bindings:
-
-(global-set-key "\C-cv" 'catalogue-view)
-(global-set-key "\C-cd" 'catalogue-disk-identify)
-(define-key database-view-mode-map "/" 'catalogue-disk-identify)
-(define-key database-view-mode-map "B" 'catalogue-borrow)
-(define-key database-view-mode-map "\C-cb" 'catalogue-borrow)
-(define-key database-view-mode-map "L" 'catalogue-lend)
-(define-key database-view-mode-map "\C-cl" 'catalogue-lend)
-(define-key database-view-mode-map "R" 'catalogue-release)
-(define-key database-view-mode-map "\C-cr" 'catalogue-release)
-(define-key database-view-mode-map "G" 'catalogue-give-up)
-(define-key database-view-mode-map "\C-cg" 'catalogue-give-up)
-(define-key database-view-mode-map "\C-c\C-r" 'catalogue-reassign)
-(define-key database-view-mode-map "\C-cu" 'catalogue-unregister)
 
 
 ;;; That's all.
