@@ -1,6 +1,6 @@
 ;;; catalogue.el --- CD/DVD collection holder
 
-;; Copyright (C) 2006  Igor B. Poretsky
+;; Copyright (C) 2010  Igor B. Poretsky
 
 ;; Author: Igor B. Poretsky <poretsky@mlbox.ru>
 ;; Keywords: database, media collection
@@ -20,7 +20,6 @@
 ;; the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;; Boston, MA 02111-1307, USA.
 
-;;; Commentary:
 
 ;;; Requirements:
 
@@ -42,11 +41,6 @@
   :type '(radio (const :tag "Examine environment" nil)
                 (const :tag "English" "en")
                 (const :tag "Russian" "ru"))
-  :group 'catalogue)
-
-(defcustom catalogue-database-file (expand-file-name "~/.catalogue/collection.dat")
-  "*Catalogue database file."
-  :type 'file
   :group 'catalogue)
 
 (defcustom catalogue-cd-dvd-device (expand-file-name "/dev/cdrom")
@@ -80,6 +74,21 @@ after editing or performing actions like
 
 
 ;;; Code:
+
+(defconst catalogue-shared-resource-path
+  (list "/usr/local/share/catalogue"
+        "/usr/share/catalogue"
+        (expand-file-name "../db" (file-name-directory load-file-name)))
+  "List of common resource paths.")
+
+(defconst catalogue-resource-directory (expand-file-name "~/.catalogue/")
+  "User database directory.")
+
+(defconst catalogue-db-file (expand-file-name "collection.dat" catalogue-resource-directory)
+  "User database file.")
+
+(defvar catalogue-display-format-path nil
+  "Path list to the format files for various display modes.")
 
 (defconst catalogue-find-subdirs-options
   " -maxdepth 1 -mindepth 1 -noleaf -type d "
@@ -144,6 +153,16 @@ which should be used when guessing.")
      (misc . "Разное")))
   "Category names by language.")
 
+(defun catalogue-db-open ()
+  "Open existing user database or create a fresh one."
+  (unless (file-exists-p catalogue-resource-directory)
+    (make-directory catalogue-resource-directory))
+  (let ((db-format-file-path catalogue-shared-resource-path)
+        (db-aux-file-path catalogue-shared-resource-path))
+    (db-find-file catalogue-db-file)
+    (unless (file-exists-p catalogue-db-file)
+      (db-toggle-internal-file-layout t))))
+
 (defun catalogue-language ()
   "get current database language as a valid two-letter code."
   (or catalogue-database-language
@@ -174,28 +193,29 @@ which should be used when guessing.")
 
 (defun catalogue-choose-display-format (record)
   "Choose an appropriate display format for the record."
-  (cond
-   ((and catalogue-empty-p
-	 (or (null (record-field record 'id dbc-database))
-	     (string= (record-field record 'id dbc-database) "")))
-    (db-change-format "empty"))
-   (catalogue-editing-p
-    (db-change-format "edit disk info"))
-   (catalogue-unknown-disk
-    (db-change-format "disk registration form"))
-   ((and (record-field record 'lended dbc-database)
-	 (not (string= (record-field record 'lended dbc-database) "")))
-    (if (or (not (record-field record 'owner dbc-database))
-	    (string= (record-field record 'owner dbc-database) ""))
-	(db-change-format "lended disk info")
-      (db-change-format "transit disk info")))
-   ((and (record-field record 'owner dbc-database)
-	 (not (string= (record-field record 'owner dbc-database) "")))
-    (if (or (not (record-field record 'since dbc-database))
-	    (string= (record-field record 'since dbc-database) ""))
-	(db-change-format "alien disk info")
-      (db-change-format "borrowed disk info")))
-   (t (db-change-format "native disk info"))))
+  (let ((db-format-file-path catalogue-display-format-path))
+    (cond
+     ((and catalogue-empty-p
+           (or (null (record-field record 'id dbc-database))
+               (string= (record-field record 'id dbc-database) "")))
+      (db-change-format "empty"))
+     (catalogue-editing-p
+      (db-change-format "edit disk info"))
+     (catalogue-unknown-disk
+      (db-change-format "disk registration form"))
+     ((and (record-field record 'lended dbc-database)
+           (not (string= (record-field record 'lended dbc-database) "")))
+      (if (or (not (record-field record 'owner dbc-database))
+              (string= (record-field record 'owner dbc-database) ""))
+          (db-change-format "lended disk info")
+        (db-change-format "transit disk info")))
+     ((and (record-field record 'owner dbc-database)
+           (not (string= (record-field record 'owner dbc-database) "")))
+      (if (or (not (record-field record 'since dbc-database))
+              (string= (record-field record 'since dbc-database) ""))
+          (db-change-format "alien disk info")
+        (db-change-format "borrowed disk info")))
+     (t (db-change-format "native disk info")))))
 
 (defun catalogue-check-emptiness ()
   "Check if the catalogue database is empty and set `catalogue-empty-p'.
@@ -486,7 +506,7 @@ and return t if success."
 		    nil nil 'raw-text t))
 	   (draft (if (eq major-mode 'database-mode)
 		      (dbf-displayed-record)
-		    (db-find-file catalogue-database-file)
+		    (catalogue-db-open)
 		    nil))
 	   (category (if data
 			 (catalogue-guess-disk-category)
@@ -549,7 +569,7 @@ and return t if success."
   "Enter the disks catalogue."
   (interactive)
   (setq catalogue-unknown-disk nil)
-  (db-find-file (expand-file-name catalogue-database-file))
+  (catalogue-db-open)
   (when (and (featurep 'emacspeak)
 	     (interactive-p))
     (emacspeak-auditory-icon 'open-object)))

@@ -21,6 +21,16 @@
 ;; Boston, MA 02111-1307, USA.
 
 
+;;; Requirements:
+
+(require 'database)
+
+
+;;; Ensure correct load path:
+
+(add-to-list 'load-path (directory-file-name (file-name-directory load-file-name)))
+
+
 ;;; Autoloads:
 
 (autoload 'catalogue-view "catalogue" "View CD/DVD catalogue." t)

@@ -24,17 +24,18 @@
 				 (cons
 				  (fieldname->fieldnumber 'unit database)
 				  'increasing))))
+(setq catalogue-display-format-path
+      (list (expand-file-name (catalogue-language) (file-name-directory load-file-name))
+            (directory-file-name (file-name-directory load-file-name))))
 (setq dbf-format-name-spec-alist
-      (let ((lang (catalogue-language)))
-        (list
-         (cons "empty" (concat lang "/empty.fmt"))
-         (cons "native disk info" "collection.fmt")
-         (cons "alien disk info" (concat lang "/alien.fmt"))
-         (cons "borrowed disk info" (concat lang "/borrowed.fmt"))
-         (cons "lended disk info" (concat lang "/lended.fmt"))
-         (cons "transit disk info" (concat lang "/transit.fmt"))
-         (cons "disk registration form" (concat lang "/register.fmt"))
-         (cons "edit disk info" (concat lang "/edit.fmt")))))
+      '(("empty" . "empty.fmt")
+        ("native disk info" . "collection.fmt")
+        ("alien disk info" . "alien.fmt")
+        ("borrowed disk info" . "borrowed.fmt")
+        ("lended disk info" . "lended.fmt")
+        ("transit disk info" . "transit.fmt")
+        ("disk registration form" . "register.fmt")
+        ("edit disk info" . "edit.fmt")))
 (dbf-set-summary-format "\\name (\\unit/\\set)")
 (add-hook 'db-after-read-hooks 'catalogue-check-emptiness)
 (add-hook 'db-view-mode-hooks 'catalogue-view-mode)
