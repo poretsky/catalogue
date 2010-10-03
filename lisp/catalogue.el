@@ -25,8 +25,8 @@
 
 (eval-when-compile (require 'cl))
 (require 'custom)
-(require 'advice)
 (require 'database)
+(require 'catalogue-keymap)
 
 
 ;;; Customizations:
@@ -160,6 +160,7 @@ which should be used when guessing.")
   (let ((db-format-file-path catalogue-shared-resource-path)
         (db-aux-file-path catalogue-shared-resource-path))
     (db-find-file catalogue-db-file)
+    (use-local-map catalogue-view-map)
     (unless (file-exists-p catalogue-db-file)
       (db-toggle-internal-file-layout t))))
 
@@ -171,25 +172,15 @@ which should be used when guessing.")
          ((string-match "^ru_RU" lang) "ru")
          (t "en")))))
 
-(defun catalogue-view-mode ()
-  "Switch edit mode indicator off."
-  (when catalogue-editing-p
-    (setq catalogue-editing-p nil)
-    (when catalogue-auto-commit
-      (db-accept-record))
-    (when catalogue-auto-sort
-      (db-sort t))
-    (db-next-record 0)))
+(defun catalogue-edit-setup ()
+  "Setup record editing mode."
+  (use-local-map catalogue-edit-map))
 
-(defadvice db-first-field (before catalogue pre act comp)
-  "Set display format convenient for editing."
-  (when (interactive-p)
-    (when (and catalogue-empty-p
-	       (or (null (dbf-displayed-record-field 'id))
-		   (string= "" (dbf-displayed-record-field 'id))))
-      (error "Catalogue is empty"))
-    (setq catalogue-editing-p t)
-    (db-next-record 0)))
+(defun catalogue-view-setup ()
+  "Setup view mode."
+  (if catalogue-unknown-disk
+      (use-local-map catalogue-preview-map)
+    (use-local-map catalogue-view-map)))
 
 (defun catalogue-choose-display-format (record)
   "Choose an appropriate display format for the record."
@@ -472,6 +463,17 @@ and return t if success."
 		 (car (car cfl))
 	       'misc)))))))
 
+(defun catalogue-native-p ()
+  "Check if displayed disk is native."
+  (string= "" (dbf-displayed-record-field 'owner)))
+
+(defun catalogue-borrowed-p ()
+  "Check if displayed disk is borrowed."
+  (and (dbf-displayed-record-field 'owner)
+       (not (string= "" (dbf-displayed-record-field 'owner)))
+       (dbf-displayed-record-field 'since)
+       (not (string= "" (dbf-displayed-record-field 'since)))))
+
 
 ;;; Interactive commands:
 
@@ -565,6 +567,22 @@ and return t if success."
 		   (interactive-p))
 	  (emacspeak-auditory-icon 'search-miss))))))
 
+(defun catalogue-edit ()
+  "Set display format convenient for editing."
+  (interactive)
+  (unless (eq major-mode 'database-mode)
+    (error "This operation can only be done from the database mode"))
+  (when catalogue-empty-p
+    (error "Catalogue is empty"))
+  (setq catalogue-editing-p t)
+  (db-next-record 0)
+  (db-first-field)
+  (setq catalogue-editing-p t)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'open-object)
+    (emacspeak-speak-line)))
+
 (defun catalogue-view ()
   "Enter the disks catalogue."
   (interactive)
@@ -580,10 +598,9 @@ With prefix argument apply the action to the entire disk set."
   (interactive "P")
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (when (string= "" (dbf-displayed-record-field 'owner))
+  (when (catalogue-native-p)
     (error "This disk is native, so cannot be borrowed"))
-  (when (and (not (string= "" (dbf-displayed-record-field 'owner)))
-	     (not (string= "" (dbf-displayed-record-field 'since))))
+  (when (catalogue-borrowed-p)
     (error "This disk is already borrowed"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field-and-redisplay 'since
@@ -701,6 +718,54 @@ With prefix argument apply the action to the entire disk set."
   (when (and (featurep 'emacspeak)
 	     (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
+
+(defun catalogue-commit ()
+  "Commit current record to the database after editing."
+  (interactive)
+  (unless (eq major-mode 'database-mode)
+    (error "This operation can only be done from the database mode"))
+  (unless catalogue-editing-p
+    (error "Not in editing mode"))
+  (setq catalogue-editing-p nil)
+  (when catalogue-auto-sort
+    (db-sort t))
+  (db-save-database)
+  (db-view-mode)
+  (db-next-record 0)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'close-object)))
+
+(defun catalogue-cancel ()
+  "Finish editing without saving changes."
+  (interactive)
+  (unless (eq major-mode 'database-mode)
+    (error "This operation can only be done from the database mode"))
+  (unless catalogue-editing-p
+    (error "Not in editing mode"))
+  (setq catalogue-editing-p nil)
+  (db-revert-database)
+  (db-view-mode)
+  (db-next-record 0)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'close-object)))
+
+(defun catalogue-cancel-registration ()
+  "Cancel new disk registration."
+  (interactive)
+  (unless (eq major-mode 'database-mode)
+    (error "This operation can only be done from the database mode"))
+  (when catalogue-editing-p
+    (error "Not in viewing mode"))
+  (unless catalogue-unknown-disk
+    (error "Not a new disk"))
+  (db-delete-record t)
+  (db-save-database)
+  (use-local-map catalogue-view-map)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'close-object)))
 
 
 ;;; That's all.
