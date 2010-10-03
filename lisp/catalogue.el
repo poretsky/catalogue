@@ -65,13 +65,6 @@ and accessible to the database user."
   :type 'boolean
   :group 'catalogue)
 
-(defcustom catalogue-auto-commit t
-  "*If true the record will be automatically committed
-after editing or performing actions like
-`borrow', `lend', `release' or `give-up'."
-  :type 'boolean
-  :group 'catalogue)
-
 
 ;;; Code:
 
@@ -727,8 +720,7 @@ With prefix argument apply the action to the entire disk set."
   (unless catalogue-editing-p
     (error "Not in editing mode"))
   (setq catalogue-editing-p nil)
-  (when catalogue-auto-sort
-    (db-sort t))
+  (db-sort t)
   (db-save-database)
   (db-view-mode)
   (db-next-record 0)

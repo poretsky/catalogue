@@ -63,11 +63,11 @@
   '("Catalogue"
     ["Edit" catalogue-edit (not catalogue-empty-p)]
     ["Identify disk" catalogue-disk-identify t]
-    ["Borrow" catalogue-borrow (not (or catalogue-empty-p catalogue-unknown-disk (catalogue-native-p) (catalogue-borrowed-p)))]
-    ["Lend" catalogue-lend (not (or catalogue-empty-p catalogue-unknown-disk))]
-    ["Release" catalogue-release (not (or catalogue-empty-p catalogue-unknown-disk))]
-    ["Give up" catalogue-give-up (not (or catalogue-empty-p catalogue-unknown-disk))]
-    ["Reassign" catalogue-reassign (not (or catalogue-empty-p catalogue-unknown-disk))]
+    ["Borrow" catalogue-borrow (not (or catalogue-empty-p (catalogue-native-p) (catalogue-borrowed-p)))]
+    ["Lend" catalogue-lend (not catalogue-empty-p)]
+    ["Release" catalogue-release (not catalogue-empty-p)]
+    ["Give up" catalogue-give-up (not catalogue-empty-p)]
+    ["Reassign" catalogue-reassign (not catalogue-empty-p)]
     ["Quit" db-exit t]))
 
 
