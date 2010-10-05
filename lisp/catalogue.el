@@ -718,13 +718,31 @@ With prefix argument apply the action to the entire disk set."
       (emacspeak-auditory-icon 'search-hit))
     (message "Already registered disk")))
 
-(defun catalogue-unregister ()
-  "Forget this disk forever."
-  (interactive)
+(defun catalogue-unregister (&optional entire)
+  "Forget this disk forever.
+With prefix argument unregisters entire disk set."
+  (interactive "P")
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (when (y-or-n-p "Forget this disk forever? ")
-    (catalogue-delete-record)
+  (when (y-or-n-p
+         (format "Forget this %s forever? "
+                 (if entire
+                     "entire disk set"
+                   "disk")))
+    (if entire
+        (let ((name (dbf-displayed-record-field 'name))
+              (index 0))
+          (maprecords
+           (lambda (record)
+             (setq index (1+ index))
+             (when (string= name
+                            (record-field record 'name dbc-database))
+               (maprecords-break)))
+           dbc-database)
+          (db-jump-to-record index)
+          (while (string= (dbf-displayed-record-field 'name) name)
+            (catalogue-delete-record)))
+      (catalogue-delete-record))
     (db-save-database)
     (when (and (featurep 'emacspeak)
                (interactive-p))
