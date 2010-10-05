@@ -44,14 +44,3 @@
 (setq dbf-before-display-record-function 'catalogue-choose-display-format)
 (setq dbf-every-change-function 'catalogue-validate-field-change)
 (setq dbf-after-record-change-function 'catalogue-accept-record)
-(setq catalogue-category-names-alist
-      (cdr (assoc (catalogue-language) catalogue-category-names)))
-(setq catalogue-category-files-alist
-      '((mp3-music . ".*\\.mp[23]")
-	(video-avi . ".*\\.avi")
-	(video-ogm . ".*\\.ogm")
-	(video-mpg . ".*\\.mpg")
-	(software-deb . ".*\\.deb")
-	(software-rpm . ".*\\.rpm")
-	(software-fbsd . ".*\\.tbz")
-	(software-ms . ".*\\.exe")))

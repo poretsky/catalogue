@@ -80,9 +80,6 @@ and accessible to the database user."
 (defconst catalogue-db-file (expand-file-name "collection.dat" catalogue-resource-directory)
   "User database file.")
 
-(defvar catalogue-display-format-path nil
-  "Path list to the format files for various display modes.")
-
 (defconst catalogue-find-subdirs-options
   " -maxdepth 1 -mindepth 1 -noleaf -type d "
   "Options passed to find utility to locate subdirectories.")
@@ -90,29 +87,17 @@ and accessible to the database user."
 (defconst catalogue-no-id "noid"
   "Dummy disk identifier.")
 
-(defvar catalogue-mp3-contents-title "Albums:"
-  "Title string for mp3 disk content description.")
-
-(defvar catalogue-date-format "%B %e, %Y"
-  "Date display format.")
-
-(defvar catalogue-category-names-alist
-  '((music)
-    (mp3-music)
-    (mp3-audiobook)
-    (video-dvd)
-    (misc))
-  "Association list of disk categories and it's names.")
-
-(defvar catalogue-category-files-alist nil
+(defconst catalogue-category-files-alist
+  '((mp3-music . ".*\\.mp[23]")
+    (video-avi . ".*\\.avi")
+    (video-ogm . ".*\\.ogm")
+    (video-mpg . ".*\\.mpg")
+    (software-deb . ".*\\.deb")
+    (software-rpm . ".*\\.rpm")
+    (software-fbsd . ".*\\.tbz")
+    (software-ms . ".*\\.exe"))
   "Association list of disk categories and corresponding file masks
 which should be used when guessing.")
-
-(defvar catalogue-unknown-disk nil
-  "Indicates whether this disk has to be registered.")
-
-(defvar catalogue-editing-p nil
-  "Edit mode indicator.")
 
 (defconst catalogue-category-names
   '(("en"
@@ -142,6 +127,25 @@ which should be used when guessing.")
      (software-ms . "Software (MSDOS/Windows)")
      (misc . "Разное")))
   "Category names by language.")
+
+(defconst catalogue-mp3-contents-title
+  '(("en" . "Albums:")
+    ("ru" . "Альбомы:"))
+  "Title strings for mp3 disk content description for supported languages.")
+
+(defconst catalogue-date-format "%B %e, %Y"
+  "Date display format.")
+
+
+(defvar catalogue-display-format-path nil
+  "Path list to the format files for various display modes.")
+
+(defvar catalogue-unknown-disk nil
+  "Indicates whether this disk has to be registered.")
+
+(defvar catalogue-editing-p nil
+  "Edit mode indicator.")
+
 
 (defun catalogue-db-open ()
   "Open existing user database or create a fresh one."
@@ -394,7 +398,7 @@ and return it's name or nil otherwise."
 	 (nconc
 	  (list (or name ""))
 	  (concat
-	   catalogue-mp3-contents-title
+	   (cdr (assoc (catalogue-language) catalogue-mp3-contents-title))
 	   "\n"
 	   (shell-command-to-string
 	    (concat
@@ -445,7 +449,7 @@ and return t if success."
 
 (defun catalogue-category-name (category)
   "Return name of given category."
-  (or (cdr (assoc category catalogue-category-names-alist))
+  (or (cdr (assoc category (cdr (assoc (catalogue-language) catalogue-category-names))))
       (symbol-name category)))
 
 (defun catalogue-guess-disk-category ()
