@@ -114,9 +114,6 @@ which should be used when guessing.")
 (defvar catalogue-editing-p nil
   "Edit mode indicator.")
 
-(defvar catalogue-empty-p nil
-  "Catalogue emptiness indicator.")
-
 (defconst catalogue-category-names
   '(("en"
      (music . "Music")
@@ -152,10 +149,7 @@ which should be used when guessing.")
     (make-directory catalogue-resource-directory))
   (let ((db-format-file-path catalogue-shared-resource-path)
         (db-aux-file-path catalogue-shared-resource-path))
-    (db-find-file catalogue-db-file)
-    (use-local-map catalogue-view-map)
-    (unless (file-exists-p catalogue-db-file)
-      (db-toggle-internal-file-layout t))))
+    (db-find-file catalogue-db-file)))
 
 (defun catalogue-language ()
   "get current database language as a valid two-letter code."
@@ -164,6 +158,30 @@ which should be used when guessing.")
         (cond
          ((string-match "^ru_RU" lang) "ru")
          (t "en")))))
+
+(defun catalogue-count-records (&optional limit)
+  "Count records in the catalogue database up to limit
+if specified."
+  (let ((count 0))
+    (maprecords
+     (lambda (record)
+       (when (and limit (>= (setq count (1+ count)) limit))
+         (maprecords-break)))
+     dbc-database)
+    count))
+
+(defun catalogue-empty-p ()
+  "Check if media catalogue database is empty."
+  (and (= 1 (catalogue-count-records 2))
+       (or (null (dbf-displayed-record-field 'id))
+           (string= (dbf-displayed-record-field 'id) ""))))
+
+(defun catalogue-setup ()
+  "Setup media catalogue database."
+  (setq catalogue-unknown-disk nil)
+  (unless (file-exists-p catalogue-db-file)
+    (db-toggle-internal-file-layout t))
+  (use-local-map catalogue-view-map))
 
 (defun catalogue-edit-setup ()
   "Setup record editing mode."
@@ -179,14 +197,12 @@ which should be used when guessing.")
   "Choose an appropriate display format for the record."
   (let ((db-format-file-path catalogue-display-format-path))
     (cond
-     ((and catalogue-empty-p
-           (or (null (record-field record 'id dbc-database))
-               (string= (record-field record 'id dbc-database) "")))
-      (db-change-format "empty"))
      (catalogue-editing-p
       (db-change-format "edit disk info"))
      (catalogue-unknown-disk
       (db-change-format "disk registration form"))
+     ((catalogue-empty-p)
+      (db-change-format "empty"))
      ((and (record-field record 'lended dbc-database)
            (not (string= (record-field record 'lended dbc-database) "")))
       (if (or (not (record-field record 'owner dbc-database))
@@ -201,21 +217,19 @@ which should be used when guessing.")
         (db-change-format "borrowed disk info")))
      (t (db-change-format "native disk info")))))
 
-(defun catalogue-check-emptiness ()
-  "Check if the catalogue database is empty and set `catalogue-empty-p'.
-Should be called when reading the database."
-  (setq catalogue-empty-p t)
-  (maprecords
-   (lambda (record)
-     (when (and (record-field record 'id database)
-		(not (string= "" (record-field record 'id database))))
-       (setq catalogue-empty-p nil)
-       (maprecords-break)))
-   database))
-
 (defun catalogue-initialize-record (record database)
   "Initialize newly created record."
   (record-set-field record 'id catalogue-no-id database))
+
+(defun catalogue-delete-record ()
+  "Delete record or clear it if it is the only one."
+  (when (= 1 (catalogue-count-records 2))
+    (db-add-record)
+    (dbf-set-this-record-modified-p t)
+    (dbf-displayed-record-set-field 'id "")
+    (db-view-mode)
+    (db-next-record 1))
+  (db-delete-record t))
 
 (defun catalogue-find-hole-in-disk-set (name)
   "Return first free unit number in the disk set or nil if the set is full."
@@ -304,11 +318,7 @@ Intended for use in the field change hook."
 
 (defun catalogue-accept-record (record)
   "Some catalogue specific actions concerning record commitment."
-  (setq catalogue-unknown-disk nil)
-  (when catalogue-empty-p
-    (setq catalogue-empty-p nil)
-    (db-next-record 1)
-    (db-delete-record t)))
+  (setq catalogue-unknown-disk nil))
 
 (defun catalogue-find-hole ()
   "Find non-complete disk set and return draft of new record
@@ -529,7 +539,6 @@ and return t if success."
 		 (when (and (featurep 'emacspeak)
 			    (interactive-p))
 		   (emacspeak-auditory-icon 'search-hit)))
-	(setq catalogue-unknown-disk t)
 	(if draft
 	    (unless (setq index (catalogue-find-hole-in-disk-set
 				 (record-field draft 'name dbc-database)))
@@ -539,8 +548,13 @@ and return t if success."
 		  (setq index (record-field draft 'unit dbc-database)))))
 	  (setq draft (catalogue-find-hole))
 	  (setq index (and draft (record-field draft 'unit dbc-database))))
-	(db-add-record)
-	(dbf-set-this-record-modified-p t)
+        (let ((catalogue-editing-p t))
+          (if (not (catalogue-empty-p))
+              (db-add-record)
+            (db-add-record)
+            (db-next-record 1)
+            (db-delete-record t)))
+        (dbf-set-this-record-modified-p t)
 	(if index
 	    (copy-record-to-record draft (dbf-displayed-record))
 	  (dbf-displayed-record-set-field 'set 1)
@@ -554,8 +568,10 @@ and return t if success."
 	  (dbf-displayed-record-set-field 'description (cdr cdinfo)))
 	(dbf-displayed-record-set-field 'unit (or index 1))
 	(dbf-displayed-record-set-field 'media media)
-	(dbf-displayed-record-set-field-and-redisplay 'id id)
+	(dbf-displayed-record-set-field 'id id)
+	(setq catalogue-unknown-disk t)
 	(db-view-mode)
+        (dbf-redisplay-entire-record-maybe)
 	(when (and (featurep 'emacspeak)
 		   (interactive-p))
 	  (emacspeak-auditory-icon 'search-miss))))))
@@ -565,7 +581,8 @@ and return t if success."
   (interactive)
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (when catalogue-empty-p
+  (when (and (not catalogue-unknown-disk)
+             (catalogue-empty-p))
     (error "Catalogue is empty"))
   (setq catalogue-editing-p t)
   (db-next-record 0)
@@ -702,15 +719,16 @@ With prefix argument apply the action to the entire disk set."
     (message "Already registered disk")))
 
 (defun catalogue-unregister ()
-  "Wipe disk id for current record."
+  "Forget this disk forever."
   (interactive)
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field-and-redisplay 'id catalogue-no-id)
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
+  (when (y-or-n-p "Forget this disk forever? ")
+    (catalogue-delete-record)
+    (db-save-database)
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon 'delete-object))))
 
 (defun catalogue-commit ()
   "Commit current record to the database after editing."
@@ -752,7 +770,7 @@ With prefix argument apply the action to the entire disk set."
     (error "Not in viewing mode"))
   (unless catalogue-unknown-disk
     (error "Not a new disk"))
-  (db-delete-record t)
+  (catalogue-delete-record)
   (db-save-database)
   (use-local-map catalogue-view-map)
   (when (and (featurep 'emacspeak)

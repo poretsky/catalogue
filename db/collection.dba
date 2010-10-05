@@ -37,7 +37,7 @@
         ("disk registration form" . "register.fmt")
         ("edit disk info" . "edit.fmt")))
 (dbf-set-summary-format "\\name (\\unit/\\set)")
-(add-hook 'db-after-read-hooks 'catalogue-check-emptiness)
+(add-hook 'db-after-read-hooks 'catalogue-setup)
 (add-hook 'db-view-mode-hooks 'catalogue-view-setup)
 (add-hook 'db-edit-mode-hooks 'catalogue-edit-setup)
 (setq db-new-record-function 'catalogue-initialize-record)

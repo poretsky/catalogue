@@ -46,8 +46,7 @@
         ("G" . catalogue-give-up)
         ("\C-cg" . catalogue-give-up)
         ("\C-c\C-r" . catalogue-reassign)
-        ("U" . catalogue-unregister)
-        ("\C-cu" . catalogue-unregister)
+        ("\C-d" . catalogue-unregister)
         ("?" . describe-mode)
         ("n" . db-next-record)
         ([next] . db-next-record)
@@ -61,13 +60,14 @@
 (easy-menu-define nil catalogue-view-map
   "Media catalogue view menu"
   '("Catalogue"
-    ["Edit" catalogue-edit (not catalogue-empty-p)]
+    ["Edit" catalogue-edit (not (catalogue-empty-p))]
     ["Identify disk" catalogue-disk-identify t]
-    ["Borrow" catalogue-borrow (not (or catalogue-empty-p (catalogue-native-p) (catalogue-borrowed-p)))]
-    ["Lend" catalogue-lend (not catalogue-empty-p)]
-    ["Release" catalogue-release (not catalogue-empty-p)]
-    ["Give up" catalogue-give-up (not catalogue-empty-p)]
-    ["Reassign" catalogue-reassign (not catalogue-empty-p)]
+    ["Borrow" catalogue-borrow (not (or (catalogue-empty-p) (catalogue-native-p) (catalogue-borrowed-p)))]
+    ["Lend" catalogue-lend (not (catalogue-empty-p))]
+    ["Release" catalogue-release (not (catalogue-empty-p))]
+    ["Give up" catalogue-give-up (not (catalogue-empty-p))]
+    ["Reassign" catalogue-reassign (not (catalogue-empty-p))]
+    ["Unregister" catalogue-unregister (not (catalogue-empty-p))]
     ["Quit" db-exit t]))
 
 
