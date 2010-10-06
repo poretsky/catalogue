@@ -360,7 +360,7 @@ with the disk name in car and description in cdr."
 			    " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
 			    title)
 			   -1)))
-      (nconc (list (substring title 0 breakpoint))
+      (cons (substring title 0 breakpoint)
 	     (progn (end-of-line)
 		    (concat (if (< breakpoint 0)
 				""
@@ -393,28 +393,32 @@ and return it's name or nil otherwise."
       ((or (null dirs)
 	   (file-directory-p (expand-file-name (car dirs)
 					       catalogue-cd-dvd-mountpoint)))
-       (let ((name (and dirs
-			(catalogue-find-sole-subdir (car dirs)))))
-	 (nconc
-	  (list (or name ""))
-	  (concat
-	   (cdr (assoc (catalogue-language) catalogue-mp3-contents-title))
-	   "\n"
-	   (shell-command-to-string
-	    (concat
-	     "find \""
-	     (if name
-		 (expand-file-name name
-				   (expand-file-name
-				    (car dirs)
-				    catalogue-cd-dvd-mountpoint))
-	       (if dirs
-		   (expand-file-name (car dirs)
-				     catalogue-cd-dvd-mountpoint)
-		 catalogue-cd-dvd-mountpoint))
-	     "\""
-	     catalogue-find-subdirs-options
-	     "-printf \"%f\\n\""))))))))
+       (let* ((name (and dirs
+                         (catalogue-find-sole-subdir (car dirs))))
+              (content
+               (shell-command-to-string
+                (concat
+                 "find \""
+                 (if name
+                     (expand-file-name name
+                                       (expand-file-name
+                                        (car dirs)
+                                        catalogue-cd-dvd-mountpoint))
+                   (if dirs
+                       (expand-file-name (car dirs)
+                                         catalogue-cd-dvd-mountpoint)
+                     catalogue-cd-dvd-mountpoint))
+                 "\""
+                 catalogue-find-subdirs-options
+                 "-printf \"%f\\n\""))))
+	 (cons
+	  (or name "")
+          (if (string= content "")
+              content
+            (concat
+             (cdr (assoc (catalogue-language) catalogue-mp3-contents-title))
+             "\n"
+             content)))))))
 
 (defun catalogue-count-files-amount (fmask)
   "Return amount of disk space occupied by files defined by given mask
