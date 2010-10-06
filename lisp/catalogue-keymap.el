@@ -37,6 +37,7 @@
       '(("/" . catalogue-disk-identify)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
+        ("s" . catalogue-search)
         ("B" . catalogue-borrow)
         ("\C-cb" . catalogue-borrow)
         ("L" . catalogue-lend)
@@ -61,6 +62,7 @@
   "Media catalogue view menu"
   '("Catalogue"
     ["Edit" catalogue-edit (not (catalogue-empty-p))]
+    ["Search" catalogue-search (not (catalogue-empty-p))]
     ["Identify disk" catalogue-disk-identify t]
     ["Borrow" catalogue-borrow (not (or (catalogue-empty-p) (catalogue-native-p) (catalogue-borrowed-p)))]
     ["Lend" catalogue-lend (not (catalogue-empty-p))]
@@ -97,6 +99,7 @@
       '(("\C-c\C-c" . catalogue-commit)
         ("\C-cq" . catalogue-cancel)
         ("\C-xU" . db-revert-field)
+        ("\M-s" . db-search-field)
         ([next] . db-next-record)
         ([prior] . db-previous-record)
         ("\C-n" . db-next-line-or-field)
@@ -137,6 +140,7 @@
     ["Cancel" catalogue-cancel t]
     ["Revert record" db-revert-record t]
     ["Revert field" db-revert-field t]
+    ["Search by field" db-search-field t]
     ["Help on field" db-field-help t]))
 
 
