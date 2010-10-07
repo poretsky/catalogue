@@ -128,17 +128,18 @@ with the disk name in car and description in cdr."
 (defun catalogue-find-sole-subdir (dir)
   "Check if given directory contains only one subdir
 and return it's name or nil otherwise."
-  (and (= 1 (length
-             (shell-command-to-string
-              (concat "find "
-                      (expand-file-name dir catalogue-cd-dvd-mountpoint)
-                      catalogue-find-subdirs-options
-                      "-printf \".\""))))
-       (shell-command-to-string
-        (concat "find "
-                (expand-file-name dir catalogue-cd-dvd-mountpoint)
-                catalogue-find-subdirs-options
-                "-printf \"%f\""))))
+  (let ((coding-system-for-read catalogue-media-coding-system))
+    (and (= 1 (length
+               (shell-command-to-string
+                (concat "find "
+                        (expand-file-name dir catalogue-cd-dvd-mountpoint)
+                        catalogue-find-subdirs-options
+                        "-printf \".\""))))
+         (shell-command-to-string
+          (concat "find "
+                  (expand-file-name dir catalogue-cd-dvd-mountpoint)
+                  catalogue-find-subdirs-options
+                  "-printf \"%f\"")))))
 
 (defun catalogue-guess-mp3-disk-info ()
   "Return cons cell with guessed name in car and description in cdr."
@@ -153,6 +154,7 @@ and return it's name or nil otherwise."
                                                catalogue-cd-dvd-mountpoint)))
        (let* ((name (and dirs
                          (catalogue-find-sole-subdir (car dirs))))
+              (coding-system-for-read catalogue-media-coding-system)
               (content
                (shell-command-to-string
                 (concat
@@ -183,10 +185,13 @@ and return it's name or nil otherwise."
 on CD/DVD. The mask should be a regexp matching full
 pathname of a file relative to the CD/DVD mountpoint.
 Matching is done case insensitive."
-  (let ((amount (float 0)))
+  (let ((amount (float 0))
+        (lang-orig (getenv "LANG")))
     (with-temp-buffer
       (insert "(setq amount (+ amount))")
       (backward-char 2)
+      (when catalogue-media-coding-system
+        (setenv "LANG" (symbol-name catalogue-media-coding-system)))
       (call-process "find" nil (list (current-buffer) nil) nil
                     catalogue-cd-dvd-mountpoint
                     "-noleaf"
@@ -195,6 +200,8 @@ Matching is done case insensitive."
                     (expand-file-name fmask
                                       catalogue-cd-dvd-mountpoint)
                     "-printf" " %s")
+      (when catalogue-media-coding-system
+        (setenv "LANG" lang-orig))
       (eval-buffer))
     amount))
 
@@ -256,8 +263,7 @@ and return t if success."
                         "Data CD")
                     "Audio CD"))
            (id (md5 (if data
-                        (let ((process-coding-system-alist
-                               '((".*" . raw-text))))
+                        (let ((coding-system-for-read 'raw-text))
                           (shell-command-to-string
                            (concat "find 2>/dev/null "
                                    catalogue-cd-dvd-mountpoint

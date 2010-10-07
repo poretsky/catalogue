@@ -60,6 +60,13 @@ and accessible to the database user."
   :type 'number
   :group 'catalogue)
 
+(defcustom catalogue-media-coding-system nil
+  "The coding system used when mounting CD or DVD.
+It should correspond to the `iocharset' mount option.
+Usually there is no need to set this option here."
+  :type '(coding-system :size 0)
+  :group 'catalogue)
+
 
 ;;; Code:
 
