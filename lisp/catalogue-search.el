@@ -68,7 +68,7 @@
     (read-string "Enter search pattern: ")))
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (when catalogue-editing-p
+  (unless (eq dbf-minor-mode 'view)
     (error "This operation is only available in view mode"))
   (when dbc-database-modified-p
     (error "Database is modified and not saved"))

@@ -96,7 +96,9 @@ Usually there is no need to set this option here."
   "Edit mode indicator.")
 
 (defvar catalogue-searching-p nil
-  "Indicates that searching is in progress.")
+  "This variable is used internally by the search functions
+to force choosing special displayspec the list of searchable fields.
+It should be `nil' outside this.")
 
 
 (defun catalogue-db-open ()
@@ -324,7 +326,7 @@ Intended for use in the field change hook."
   (interactive)
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (unless catalogue-editing-p
+  (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
   (setq catalogue-editing-p nil)
   (db-sort t)
@@ -340,7 +342,7 @@ Intended for use in the field change hook."
   (interactive)
   (unless (eq major-mode 'database-mode)
     (error "This operation can only be done from the database mode"))
-  (unless catalogue-editing-p
+  (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
   (dbf-set-this-field-modified-p nil)
   (dbf-set-this-record-modified-p nil)
