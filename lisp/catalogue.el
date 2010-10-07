@@ -60,11 +60,6 @@ and accessible to the database user."
   :type 'number
   :group 'catalogue)
 
-(defcustom catalogue-auto-sort t
-  "*If true records will be automatically sorted after editing."
-  :type 'boolean
-  :group 'catalogue)
-
 
 ;;; Code:
 
