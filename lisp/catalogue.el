@@ -80,61 +80,8 @@ and accessible to the database user."
 (defconst catalogue-db-file (expand-file-name "collection.dat" catalogue-resource-directory)
   "User database file.")
 
-(defconst catalogue-find-subdirs-options
-  " -maxdepth 1 -mindepth 1 -noleaf -type d "
-  "Options passed to find utility to locate subdirectories.")
-
 (defconst catalogue-no-id "noid"
   "Dummy disk identifier.")
-
-(defconst catalogue-category-files-alist
-  '((mp3-music . ".*\\.mp[23]")
-    (video-avi . ".*\\.avi")
-    (video-ogm . ".*\\.ogm")
-    (video-mpg . ".*\\.mpg")
-    (software-deb . ".*\\.deb")
-    (software-rpm . ".*\\.rpm")
-    (software-fbsd . ".*\\.tbz")
-    (software-ms . ".*\\.exe"))
-  "Association list of disk categories and corresponding file masks
-which should be used when guessing.")
-
-(defconst catalogue-category-names
-  '(("en"
-     (music . "Music")
-     (mp3-music . "Music (mp3)")
-     (mp3-audiobooks . "Audiobook (mp3)")
-     (video-dvd . "Films (DVD)")
-     (video-avi . "Films (avi)")
-     (video-ogm . "Films (ogm)")
-     (video-mpg . "Films (mpg)")
-     (software-deb . "Software (Debian Linux)")
-     (software-rpm . "Software (RH Linux)")
-     (software-fbsd . "Software (FreeBSD)")
-     (software-ms . "Software (MSDOS/Windows)")
-     (misc . "Miscellaneous"))
-    ("ru"
-     (music . "Музыка")
-     (mp3-music . "Музыка (mp3)")
-     (mp3-audiobook . "Аудиокниги (mp3)")
-     (video-dvd . "Фильмы (DVD)")
-     (video-avi . "Фильмы (avi)")
-     (video-ogm . "Фильмы (ogm)")
-     (video-mpg . "Фильмы (mpg)")
-     (software-deb . "Software (Debian Linux)")
-     (software-rpm . "Software (RH Linux)")
-     (software-fbsd . "Software (FreeBSD)")
-     (software-ms . "Software (MSDOS/Windows)")
-     (misc . "Разное")))
-  "Category names by language.")
-
-(defconst catalogue-mp3-contents-title
-  '(("en" . "Albums:")
-    ("ru" . "Альбомы:"))
-  "Title strings for mp3 disk content description for supported languages.")
-
-(defconst catalogue-date-format "%B %e, %Y"
-  "Date display format.")
 
 
 (defvar catalogue-display-format-path nil
@@ -148,12 +95,6 @@ which should be used when guessing.")
 
 (defvar catalogue-searching-p nil
   "Indicates that searching is in progress.")
-
-(defvar catalogue-searchable-fields-list nil
-  "Remembers list of searchable fields.")
-
-(defvar catalogue-search-field-history nil
-  "Searched field name history.")
 
 
 (defun catalogue-db-open ()
@@ -210,14 +151,14 @@ if specified."
   "Choose an appropriate display format for the record."
   (let ((db-format-file-path catalogue-display-format-path))
     (cond
+     (catalogue-searching-p
+      (db-change-format "searchable fields"))
      (catalogue-editing-p
       (db-change-format "edit disk info"))
      (catalogue-unknown-disk
       (db-change-format "disk registration form"))
      ((catalogue-empty-p)
       (db-change-format "empty"))
-     (catalogue-searching-p
-      (db-change-format "searchable fields"))
      ((and (record-field record 'lended dbc-database)
            (not (string= (record-field record 'lended dbc-database) "")))
       (if (or (not (record-field record 'owner dbc-database))
@@ -335,156 +276,6 @@ Intended for use in the field change hook."
   "Some catalogue specific actions concerning record commitment."
   (setq catalogue-unknown-disk nil))
 
-(defun catalogue-find-hole ()
-  "Find non-complete disk set and return draft of new record
-or nil if no one is found."
-  (let ((draft nil)
-	(skip ""))
-    (maprecords
-     (lambda (record)
-       (let ((hole (and (> (record-field record 'set dbc-database) 1)
-			(not (string= skip
-				      (record-field record 'name
-						    dbc-database)))
-			(catalogue-find-hole-in-disk-set
-			 (record-field record 'name dbc-database)))))
-	 (if (not hole)
-	     (setq skip (record-field record 'name dbc-database))
-	   (setq draft (copy-record record))
-	   (record-set-field draft 'unit hole dbc-database)
-	   (maprecords-break))))
-     dbc-database)
-    draft))
-
-(defun catalogue-guess-audio-disk-info ()
-  "Query local CDDB and return cons cell
-with the disk name in car and description in cdr."
-  (with-temp-buffer
-    (unless (= 0 (call-process "cdir" nil t))
-      (error "No disk inserted"))
-    (goto-char (point-min))
-    (replace-regexp "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$"
-		    "\\2. \\3 (\\1)")
-    (goto-char (point-min))
-    (let* ((title (thing-at-point 'line))
-	   (breakpoint (or (string-match
-			    " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
-			    title)
-			   -1)))
-      (cons (substring title 0 breakpoint)
-	     (progn (end-of-line)
-		    (concat (if (< breakpoint 0)
-				""
-			      (match-string 1 title))
-			    (buffer-substring (point) (point-max))))))))
-
-(defun catalogue-find-sole-subdir (dir)
-  "Check if given directory contains only one subdir
-and return it's name or nil otherwise."
-  (and (= 1 (length
-	     (shell-command-to-string
-	      (concat "find "
-		      (expand-file-name dir catalogue-cd-dvd-mountpoint)
-		      catalogue-find-subdirs-options
-		      "-printf \".\""))))
-       (shell-command-to-string
-	(concat "find "
-		(expand-file-name dir catalogue-cd-dvd-mountpoint)
-		catalogue-find-subdirs-options
-		"-printf \"%f\""))))
-
-(defun catalogue-guess-mp3-disk-info ()
-  "Return cons cell with guessed name in car and description in cdr."
-  (do ((dirs '("sound" "Sound" "SOUND"
-	       "sounds" "Sounds" "SOUNDS"
-	       "audio" "Audio" "AUDIO"
-	       "music" "Music" "MUSIC"
-	       "songs" "Songs" "SONGS")
-	     (cdr dirs)))
-      ((or (null dirs)
-	   (file-directory-p (expand-file-name (car dirs)
-					       catalogue-cd-dvd-mountpoint)))
-       (let* ((name (and dirs
-                         (catalogue-find-sole-subdir (car dirs))))
-              (content
-               (shell-command-to-string
-                (concat
-                 "find \""
-                 (if name
-                     (expand-file-name name
-                                       (expand-file-name
-                                        (car dirs)
-                                        catalogue-cd-dvd-mountpoint))
-                   (if dirs
-                       (expand-file-name (car dirs)
-                                         catalogue-cd-dvd-mountpoint)
-                     catalogue-cd-dvd-mountpoint))
-                 "\""
-                 catalogue-find-subdirs-options
-                 "-printf \"%f\\n\""))))
-	 (cons
-	  (or name "")
-          (if (string= content "")
-              content
-            (concat
-             (cdr (assoc (catalogue-language) catalogue-mp3-contents-title))
-             "\n"
-             content)))))))
-
-(defun catalogue-count-files-amount (fmask)
-  "Return amount of disk space occupied by files defined by given mask
-on CD/DVD. The mask should be a regexp matching full
-pathname of a file relative to the CD/DVD mountpoint.
-Matching is done case insensitive."
-  (let ((amount (float 0)))
-    (with-temp-buffer
-      (insert "(setq amount (+ amount))")
-      (backward-char 2)
-      (call-process "find" nil (list (current-buffer) nil) nil
-		    catalogue-cd-dvd-mountpoint
-		    "-noleaf"
-		    "-type" "f"
-		    "-iregex"
-		    (expand-file-name fmask
-				      catalogue-cd-dvd-mountpoint)
-		    "-printf" " %s")
-      (eval-buffer))
-    amount))
-
-(defun catalogue-video-dvd-p ()
-  "Return t if the mounted disk is recognized as video DVD."
-  (= (catalogue-count-files-amount ".*")
-     (catalogue-count-files-amount "video_ts/.*\\.\\(vob\\|ifo\\|bup\\)")))
-
-(defun catalogue-audio-book-p ()
-  "Try to recognize the mounted CD as an audio book
-and return t if success."
-  (> (catalogue-count-files-amount "book/.*\\.mp3")
-     0))
-
-(defun catalogue-category-name (category)
-  "Return name of given category."
-  (or (cdr (assoc category (cdr (assoc (catalogue-language) catalogue-category-names))))
-      (symbol-name category)))
-
-(defun catalogue-guess-disk-category ()
-  "Try to guess category of the inserted disk."
-  (cond
-   ((catalogue-video-dvd-p)
-    'video-dvd)
-   ((catalogue-audio-book-p)
-    'mp3-audiobook)
-   (t (let ((total (catalogue-count-files-amount ".*")))
-	(when (= 0 total)
-	  (error "No files on this disk"))
-	(do ((cfl catalogue-category-files-alist (cdr cfl)))
-	    ((or (null cfl)
-		 (> (/ (catalogue-count-files-amount (cdr (car cfl))) total)
-		    catalogue-meaningful-files-quota))
-	     (if cfl
-		 (car (car cfl))
-	       'misc)))))))
-
 (defun catalogue-native-p ()
   "Check if displayed disk is native."
   (string= "" (dbf-displayed-record-field 'owner)))
@@ -496,120 +287,19 @@ and return t if success."
        (dbf-displayed-record-field 'since)
        (not (string= "" (dbf-displayed-record-field 'since)))))
 
-(defun catalogue-searchable-fields ()
-  "Get list of searchable fields."
-  (unless catalogue-searchable-fields-list
-    (let ((catalogue-searching-p t))
-      (db-next-record 0)
-      (db-last-field)
-      (setq catalogue-searchable-fields-list
-            (do ((result nil (nconc result (list (symbol-name (dbf-this-field-name)))))
-                 (i 0 (1+ i)))
-                ((>= i dbf-displayspecs-length)
-                 result)
-              (db-next-field 1))))
-    (db-view-mode)
-    (db-next-record 0))
-  catalogue-searchable-fields-list)
-
 
 ;;; Interactive commands:
 
-(defun catalogue-disk-identify ()
-  "Identify currently inserted disk if any."
+(defun catalogue-view ()
+  "Enter the disks catalogue."
   (interactive)
-  (shell-command-to-string
-   (concat "eject -t "
-	   catalogue-cd-dvd-device))
-  (let ((id (shell-command-to-string (concat "cd-discid "
-					     catalogue-cd-dvd-device
-					     " 2>/dev/null"))))
-    (when (not (string-match "[^ ]+" id))
-      (error "No disk inserted"))
-    (shell-command-to-string (concat "umount " catalogue-cd-dvd-mountpoint))
-    (let* ((data (= 0 (call-process "mount"
-				    nil nil nil
-				    catalogue-cd-dvd-mountpoint)))
-	   (media (if data
-		      (if (string= "023bfd01" (match-string 0 id))
-			  "DVD"
-			"Data CD")
-		    "Audio CD"))
-	   (id (md5 (if data
-			(let ((process-coding-system-alist
-			       '((".*" . raw-text))))
-			  (shell-command-to-string
-			   (concat "find 2>/dev/null "
-				   catalogue-cd-dvd-mountpoint
-				   " -printf \"%A@%C@%T@%U%G%m%n%s%P\"")))
-		      id)
-		    nil nil 'raw-text t))
-	   (draft (if (eq major-mode 'database-mode)
-		      (dbf-displayed-record)
-		    (catalogue-db-open)
-		    nil))
-	   (category (if data
-			 (catalogue-guess-disk-category)
-		       'music))
-	   (cdinfo (if data
-		       (when (eq category 'mp3-music)
-			 (catalogue-guess-mp3-disk-info))
-		     (catalogue-guess-audio-disk-info)))
-	   (index 0)
-	   (found nil))
-      (when data
-	(shell-command-to-string (concat "umount "
-					 catalogue-cd-dvd-mountpoint)))
-      (maprecords
-       (lambda (record)
-	 (setq index (1+ index))
-	 (when (string= id
-			(record-field record 'id dbc-database))
-	   (setq found t)
-	   (maprecords-break)))
-       dbc-database)
-      (if found
-	  (progn (setq catalogue-unknown-disk nil)
-		 (db-jump-to-record index)
-		 (when (and (featurep 'emacspeak)
-			    (interactive-p))
-		   (emacspeak-auditory-icon 'search-hit)))
-	(if draft
-	    (unless (setq index (catalogue-find-hole-in-disk-set
-				 (record-field draft 'name dbc-database)))
-	      (let ((hole (catalogue-find-hole)))
-		(when hole
-		  (setq draft hole)
-		  (setq index (record-field draft 'unit dbc-database)))))
-	  (setq draft (catalogue-find-hole))
-	  (setq index (and draft (record-field draft 'unit dbc-database))))
-        (let ((catalogue-editing-p t))
-          (if (not (catalogue-empty-p))
-              (db-add-record)
-            (db-add-record)
-            (db-next-record 1)
-            (db-delete-record t)))
-        (dbf-set-this-record-modified-p t)
-	(if index
-	    (copy-record-to-record draft (dbf-displayed-record))
-	  (dbf-displayed-record-set-field 'set 1)
-	  (dbf-displayed-record-set-field 'category
-					  (catalogue-category-name category))
-	  (when cdinfo
-	    (dbf-displayed-record-set-field 'name (car cdinfo))))
-	(when (and cdinfo
-		   (string-match (catalogue-category-name category)
-				 (dbf-displayed-record-field 'category)))
-	  (dbf-displayed-record-set-field 'description (cdr cdinfo)))
-	(dbf-displayed-record-set-field 'unit (or index 1))
-	(dbf-displayed-record-set-field 'media media)
-	(dbf-displayed-record-set-field 'id id)
-	(setq catalogue-unknown-disk t)
-	(db-view-mode)
-        (dbf-redisplay-entire-record-maybe)
-	(when (and (featurep 'emacspeak)
-		   (interactive-p))
-	  (emacspeak-auditory-icon 'search-miss))))))
+  (setq catalogue-unknown-disk nil)
+  (setq catalogue-editing-p nil)
+  (setq catalogue-searching-p nil)
+  (catalogue-db-open)
+  (when (and (featurep 'emacspeak)
+	     (interactive-p))
+    (emacspeak-auditory-icon 'open-object)))
 
 (defun catalogue-edit ()
   "Set display format convenient for editing."
@@ -626,194 +316,6 @@ and return t if success."
              (interactive-p))
     (emacspeak-auditory-icon 'open-object)
     (emacspeak-speak-line)))
-
-(defun catalogue-view ()
-  "Enter the disks catalogue."
-  (interactive)
-  (setq catalogue-unknown-disk nil)
-  (setq catalogue-editing-p nil)
-  (catalogue-db-open)
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'open-object)))
-
-(defun catalogue-search (field pattern)
-  "Search record by specified field and pattern."
-  (interactive
-   (list
-    (completing-read "Choose field to search by: "
-                     (catalogue-searchable-fields)
-                     nil t nil
-                     'catalogue-search-field-history
-                     (car (catalogue-searchable-fields)))
-    (read-string "Enter search pattern: ")))
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (when catalogue-editing-p
-    (error "This operation is only available in view mode"))
-  (when dbc-database-modified-p
-    (error "Database is modified and not saved"))
-  (when (string= pattern "")
-    (error "Empty pattern is not allowed"))
-  (let ((catalogue-searching-p t))
-    (db-next-record 0)
-    (db-first-field)
-    (do ((fields (catalogue-searchable-fields) (cdr fields)))
-        ((or (null fields)
-             (string= field (car fields))))
-      (db-next-field 1))
-    (db-search-field pattern))
-  (db-view-mode)
-  (db-next-record 0)
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'search-hit)))
-
-(defun catalogue-borrow (&optional entire)
-  "Register this disk as borrowed.
-With prefix argument apply the action to the entire disk set."
-  (interactive "P")
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (when (catalogue-native-p)
-    (error "This disk is native, so cannot be borrowed"))
-  (when (catalogue-borrowed-p)
-    (error "This disk is already borrowed"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field-and-redisplay 'since
-						(format-time-string
-						 catalogue-date-format))
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-	 (and (string= name (record-field record 'name dbc-database))
-	      (not (string= "" (record-field record 'owner dbc-database)))
-	      (string= "" (record-field record 'since dbc-database))
-	      (record-set-field record 'since
-				(format-time-string catalogue-date-format)
-				dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
-
-(defun catalogue-lend (lender &optional entire)
-  "Register this disk as lended.
-With prefix argument apply the action to the entire disk set."
-  (interactive "sLender: \nP")
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'since
-				  (format-time-string catalogue-date-format))
-  (dbf-displayed-record-set-field-and-redisplay 'lended lender)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'since
-			     (format-time-string catalogue-date-format)
-			     dbc-database)
-	   (record-set-field record 'lended lender dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
-
-(defun catalogue-release (&optional entire)
-  "Release borrowed or lended item.
-With prefix argument do this action on the entire set."
-  (interactive "P")
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'lended nil)
-  (dbf-displayed-record-set-field-and-redisplay 'since nil)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'lended nil dbc-database)
-	   (record-set-field record 'since nil dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
-
-(defun catalogue-give-up (new-owner &optional entire)
-  "Register this disk as alien.
-With prefix argument apply the action to the entire disk set."
-  (interactive "sNew owner: \nP")
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'since nil)
-  (dbf-displayed-record-set-field-and-redisplay 'owner new-owner)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'since nil dbc-database)
-	   (record-set-field record 'owner new-owner dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-	     (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
-
-(defun catalogue-reassign ()
-  "Reassign current record to the inserted disk."
-  (interactive)
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (catalogue-disk-identify)
-  (if catalogue-unknown-disk
-      (let ((new-id (dbf-displayed-record-field 'id)))
-	(db-delete-record t)
-	(dbf-set-this-record-modified-p t)
-	(dbf-displayed-record-set-field-and-redisplay 'id new-id)
-	(db-accept-record)
-	(when (and (featurep 'emacspeak)
-		   (interactive-p))
-	  (emacspeak-auditory-icon 'select-object))
-	(message "Successfully reassigned"))
-    (when (and (featurep 'emacspeak)
-	       (interactive-p))
-      (emacspeak-auditory-icon 'search-hit))
-    (message "Already registered disk")))
-
-(defun catalogue-unregister (&optional entire)
-  "Forget this disk forever.
-With prefix argument unregisters entire disk set."
-  (interactive "P")
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (when (y-or-n-p
-         (format "Forget this %s forever? "
-                 (if entire
-                     "entire disk set"
-                   "disk")))
-    (if entire
-        (let ((name (dbf-displayed-record-field 'name))
-              (index 0))
-          (maprecords
-           (lambda (record)
-             (setq index (1+ index))
-             (when (string= name
-                            (record-field record 'name dbc-database))
-               (maprecords-break)))
-           dbc-database)
-          (db-jump-to-record index)
-          (while (string= (dbf-displayed-record-field 'name) name)
-            (catalogue-delete-record)))
-      (catalogue-delete-record))
-    (db-save-database)
-    (when (and (featurep 'emacspeak)
-               (interactive-p))
-      (emacspeak-auditory-icon 'delete-object))))
 
 (defun catalogue-commit ()
   "Commit current record to the database after editing."
@@ -845,22 +347,6 @@ With prefix argument unregisters entire disk set."
     (db-exit t)
     (catalogue-view)
     (db-jump-to-record (catalogue-count-records index)))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'close-object)))
-
-(defun catalogue-cancel-registration ()
-  "Cancel new disk registration."
-  (interactive)
-  (unless (eq major-mode 'database-mode)
-    (error "This operation can only be done from the database mode"))
-  (when catalogue-editing-p
-    (error "Not in viewing mode"))
-  (unless catalogue-unknown-disk
-    (error "Not a new disk"))
-  (catalogue-delete-record)
-  (db-save-database)
-  (use-local-map catalogue-view-map)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
