@@ -190,22 +190,22 @@ if specified."
 (defun catalogue-find-hole-in-disk-set (name)
   "Return first free unit number in the disk set or nil if the set is full."
   (let ((units nil)
-	(limit 0))
+        (limit 0))
     (maprecords
      (lambda (record)
        (when (string= name
-		      (record-field record 'name dbc-database))
-	 (setq units
-	       (append units
-		       (list (record-field record 'unit dbc-database))))
-	 (setq limit (record-field record 'set dbc-database))))
+                      (record-field record 'name dbc-database))
+         (setq units
+               (append units
+                       (list (record-field record 'unit dbc-database))))
+         (setq limit (record-field record 'set dbc-database))))
      dbc-database)
     (do ((x (sort units '<) (cdr x))
-	 (i 1 (1+ i)))
-	((or (null x) (< i (car x)))
-	 (if (> i limit)
-	     nil
-	   i)))))
+         (i 1 (1+ i)))
+        ((or (null x) (< i (car x)))
+         (if (> i limit)
+             nil
+           i)))))
 
 (defun catalogue-validate-field-change (field old new)
   "Field change validator.
@@ -214,58 +214,58 @@ Intended for use in the field change hook."
   (cond
    ((eq field 'unit)
     (if (and (>= new 1)
-	     (<= new (dbf-displayed-record-field 'set)))
-	nil
+             (<= new (dbf-displayed-record-field 'set)))
+        nil
       (dbf-displayed-record-set-field field old)
       (message "Unit number is out of range")
       (ding)
       t))
    ((eq field 'set)
     (let ((maxunit (dbf-displayed-record-field 'unit))
-	  (name (dbf-displayed-record-field 'name)))
+          (name (dbf-displayed-record-field 'name)))
       (maprecords
        (lambda (record)
-	 (and (string= name (record-field record 'name dbc-database))
-	      (< maxunit
-		 (record-field record 'unit dbc-database))
-	      (setq maxunit
-		    (record-field record 'unit dbc-database))))
+         (and (string= name (record-field record 'name dbc-database))
+              (< maxunit
+                 (record-field record 'unit dbc-database))
+              (setq maxunit
+                    (record-field record 'unit dbc-database))))
        dbc-database)
       (if (>= new maxunit)
-	  (maprecords
-	   (lambda (record)
-	     (and (string= name
-			   (record-field record 'name dbc-database))
-		  (record-set-field record 'set new dbc-database)))
-	   dbc-database)
-	(dbf-displayed-record-set-field field old)
-	(message "Cannot shrink this disk set")
-	(ding)
-	t)))
+          (maprecords
+           (lambda (record)
+             (and (string= name
+                           (record-field record 'name dbc-database))
+                  (record-set-field record 'set new dbc-database)))
+           dbc-database)
+        (dbf-displayed-record-set-field field old)
+        (message "Cannot shrink this disk set")
+        (ding)
+        t)))
    ((eq field 'name)
     (if (and new (not (string= "" new)))
-	(let ((name nil)
-	      (set (dbf-displayed-record-field 'set))
-	      (unit (dbf-displayed-record-field 'unit)))
-	  (maprecords
-	   (lambda (record)
-	     (when (string= new (record-field record 'name dbc-database))
-	       (setq name new)
-	       (setq set (record-field record 'set dbc-database))
-	       (maprecords-break)))
-	   dbc-database)
-	  (if (null name)
-	      nil
-	    (if (and (> set 1)
-		     (setq unit (catalogue-find-hole-in-disk-set name)))
-		(progn
-		  (dbf-displayed-record-set-field 'set set)
-		  (dbf-displayed-record-set-field 'unit unit)
-		  t)
-	      (dbf-displayed-record-set-field field old)
-	      (message "The name is not unique")
-	      (ding)
-	      nil)))
+        (let ((name nil)
+              (set (dbf-displayed-record-field 'set))
+              (unit (dbf-displayed-record-field 'unit)))
+          (maprecords
+           (lambda (record)
+             (when (string= new (record-field record 'name dbc-database))
+               (setq name new)
+               (setq set (record-field record 'set dbc-database))
+               (maprecords-break)))
+           dbc-database)
+          (if (null name)
+              nil
+            (if (and (> set 1)
+                     (setq unit (catalogue-find-hole-in-disk-set name)))
+                (progn
+                  (dbf-displayed-record-set-field 'set set)
+                  (dbf-displayed-record-set-field 'unit unit)
+                  t)
+              (dbf-displayed-record-set-field field old)
+              (message "The name is not unique")
+              (ding)
+              nil)))
       (dbf-displayed-record-set-field field old)
       (message "Empty name")
       (ding)
@@ -298,7 +298,7 @@ Intended for use in the field change hook."
   (setq catalogue-searching-p nil)
   (catalogue-db-open)
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'open-object)))
 
 (defun catalogue-edit ()

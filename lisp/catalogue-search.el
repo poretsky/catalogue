@@ -85,7 +85,7 @@
   (db-view-mode)
   (db-next-record 0)
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'search-hit)))
 
 

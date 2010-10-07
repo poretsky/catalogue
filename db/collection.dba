@@ -1,29 +1,29 @@
 (require 'catalogue)
 (database-set-print-name database "CD/DVD catalogue")
 (database-set-fieldnames-to-list database
-				 '((id . one-line-string)
-				   (name . one-line-string)
-				   (category . one-line-string)
-				   (set . integer)
-				   (unit . integer)
-				   (media . one-line-string)
-				   (owner . one-line-string-or-nil)
-				   (lended . one-line-string-or-nil)
-				   (since . one-line-string-or-nil)
-				   (place . one-line-string)
-				   description))
+                                 '((id . one-line-string)
+                                   (name . one-line-string)
+                                   (category . one-line-string)
+                                   (set . integer)
+                                   (unit . integer)
+                                   (media . one-line-string)
+                                   (owner . one-line-string-or-nil)
+                                   (lended . one-line-string-or-nil)
+                                   (since . one-line-string-or-nil)
+                                   (place . one-line-string)
+                                   description))
 (database-set-field-priorities database
-			       (list
-				(list
-				 (cons
-				  (fieldname->fieldnumber 'category database)
-				  'increasing)
-				 (cons
-				  (fieldname->fieldnumber 'name database)
-				  'increasing)
-				 (cons
-				  (fieldname->fieldnumber 'unit database)
-				  'increasing))))
+                               (list
+                                (list
+                                 (cons
+                                  (fieldname->fieldnumber 'category database)
+                                  'increasing)
+                                 (cons
+                                  (fieldname->fieldnumber 'name database)
+                                  'increasing)
+                                 (cons
+                                  (fieldname->fieldnumber 'unit database)
+                                  'increasing))))
 (setq catalogue-display-format-path
       (list (expand-file-name (catalogue-language) (file-name-directory load-file-name))
             (directory-file-name (file-name-directory load-file-name))))

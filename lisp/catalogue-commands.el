@@ -47,21 +47,21 @@ With prefix argument apply the action to the entire disk set."
     (error "This disk is already borrowed"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field-and-redisplay 'since
-						(format-time-string
-						 catalogue-date-format))
+                                                (format-time-string
+                                                 catalogue-date-format))
   (when entire
     (let ((name (dbf-displayed-record-field 'name)))
       (maprecords
        (lambda (record)
-	 (and (string= name (record-field record 'name dbc-database))
-	      (not (string= "" (record-field record 'owner dbc-database)))
-	      (string= "" (record-field record 'since dbc-database))
-	      (record-set-field record 'since
-				(format-time-string catalogue-date-format)
-				dbc-database)))
+         (and (string= name (record-field record 'name dbc-database))
+              (not (string= "" (record-field record 'owner dbc-database)))
+              (string= "" (record-field record 'since dbc-database))
+              (record-set-field record 'since
+                                (format-time-string catalogue-date-format)
+                                dbc-database)))
        dbc-database)))
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
 
 (defun catalogue-lend (lender &optional entire)
@@ -72,20 +72,20 @@ With prefix argument apply the action to the entire disk set."
     (error "This operation can only be done from the database mode"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field 'since
-				  (format-time-string catalogue-date-format))
+                                  (format-time-string catalogue-date-format))
   (dbf-displayed-record-set-field-and-redisplay 'lended lender)
   (when entire
     (let ((name (dbf-displayed-record-field 'name)))
       (maprecords
        (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'since
-			     (format-time-string catalogue-date-format)
-			     dbc-database)
-	   (record-set-field record 'lended lender dbc-database)))
+         (when (string= name (record-field record 'name dbc-database))
+           (record-set-field record 'since
+                             (format-time-string catalogue-date-format)
+                             dbc-database)
+           (record-set-field record 'lended lender dbc-database)))
        dbc-database)))
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
 
 (defun catalogue-release (&optional entire)
@@ -101,12 +101,12 @@ With prefix argument do this action on the entire set."
     (let ((name (dbf-displayed-record-field 'name)))
       (maprecords
        (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'lended nil dbc-database)
-	   (record-set-field record 'since nil dbc-database)))
+         (when (string= name (record-field record 'name dbc-database))
+           (record-set-field record 'lended nil dbc-database)
+           (record-set-field record 'since nil dbc-database)))
        dbc-database)))
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
 
 (defun catalogue-give-up (new-owner &optional entire)
@@ -122,12 +122,12 @@ With prefix argument apply the action to the entire disk set."
     (let ((name (dbf-displayed-record-field 'name)))
       (maprecords
        (lambda (record)
-	 (when (string= name (record-field record 'name dbc-database))
-	   (record-set-field record 'since nil dbc-database)
-	   (record-set-field record 'owner new-owner dbc-database)))
+         (when (string= name (record-field record 'name dbc-database))
+           (record-set-field record 'since nil dbc-database)
+           (record-set-field record 'owner new-owner dbc-database)))
        dbc-database)))
   (when (and (featurep 'emacspeak)
-	     (interactive-p))
+             (interactive-p))
     (emacspeak-auditory-icon 'select-object)))
 
 (defun catalogue-unregister (&optional entire)
