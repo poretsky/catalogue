@@ -43,6 +43,17 @@
                 (const :tag "Russian" "ru"))
   :group 'catalogue)
 
+(defcustom catalogue-database-wraparound nil
+  "Allow wrapping around the database when browsing it by records."
+  :type 'boolean
+  :group 'catalogue)
+
+(defcustom catalogue-record-wraparound nil
+  "Allow wrapping around a record when moving from field to field
+in editing mode."
+  :type 'boolean
+  :group 'catalogue)
+
 (defcustom catalogue-cd-dvd-device (expand-file-name "/dev/cdrom")
   "*CD/DVD device."
   :type 'file
@@ -283,6 +294,8 @@ Intended for use in the field change hook."
 
 ;;; Interactive commands:
 
+;; Main entry point:
+
 (defun catalogue-view ()
   "Enter the disks catalogue."
   (interactive)
@@ -293,6 +306,140 @@ Intended for use in the field change hook."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'open-object)))
+
+
+;; Browsing functions:
+
+(put 'end-of-catalogue 'error-conditions '(error end-of-catalogue))
+(put 'end-of-catalogue 'error-message "End of catalogue")
+
+(defun catalogue-next-record (&optional arg)
+  "Go to the next catalogue record wrapping around the database if enabled.
+With prefix argument jumps to the next disk set."
+  (interactive "P")
+  (if (and (not catalogue-database-wraparound)
+           (= dbc-index (database-no-of-records dbc-database)))
+      (signal 'end-of-catalogue nil)
+    (if arg
+        (let ((name (dbf-displayed-record-field 'name))
+              (index 0)
+              (found nil))
+          (maprecords
+           (lambda (record)
+             (and (> (setq index (1+ index)) dbc-index)
+                  (setq found (not (string= (record-field record 'name dbc-database) name)))
+                  (maprecords-break)))
+           dbc-database)
+          (if found
+              (db-jump-to-record index)
+            (if catalogue-database-wraparound
+                (db-first-record)
+              (signal 'end-of-catalogue nil))))
+      (db-next-record 1))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon
+       (if (eq dbf-minor-mode 'edit)
+           'scroll
+         'select-object))
+      (emacspeak-speak-line))))
+
+(defun catalogue-next-category ()
+  "Jump to the next disk category wrapping around the database if enabled."
+  (interactive)
+  (let ((category (dbf-displayed-record-field 'category))
+        (index 0)
+        (found nil))
+    (maprecords
+     (lambda (record)
+       (and (> (setq index (1+ index)) dbc-index)
+            (setq found (not (string= (record-field record 'category dbc-database) category)))
+            (maprecords-break)))
+     dbc-database)
+    (if found
+        (db-jump-to-record index)
+      (if catalogue-database-wraparound
+          (db-first-record)
+        (signal 'end-of-catalogue nil))))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
+    (emacspeak-speak-line)))
+
+(put 'beginning-of-catalogue 'error-conditions '(error beginning-of-catalogue))
+(put 'beginning-of-catalogue 'error-message "Beginning of catalogue")
+
+(defun catalogue-previous-record (&optional arg)
+  "Go to the previous catalogue record wrapping around the database if enabled.
+With prefix argument jumps to the previous disk set."
+  (interactive "P")
+  (if (and (not catalogue-database-wraparound)
+           (= dbc-index 1))
+      (signal 'beginning-of-catalogue nil)
+    (if arg
+        (let* ((name (dbf-displayed-record-field 'name))
+               (prev name)
+               (new name)
+               (index 0)
+               (found nil))
+          (maprecords
+           (lambda (record)
+             (setq new (record-field record 'name dbc-database)
+                   index (1+ index))
+             (if (and (not catalogue-database-wraparound)
+                      (or (>= index dbc-index)
+                          (string= new name)))
+                 (maprecords-break)
+               (unless (string= prev new)
+                 (setq found index
+                       prev new))))
+           dbc-database)
+          (if found
+              (db-jump-to-record found)
+            (if catalogue-database-wraparound
+                (db-first-record)
+              (signal 'beginning-of-catalogue nil))))
+      (db-previous-record 1))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon
+       (if (eq dbf-minor-mode 'edit)
+           'scroll
+         'select-object))
+      (emacspeak-speak-line))))
+
+(defun catalogue-previous-category ()
+  "Jump to the previous disk category wrapping around the database if enabled."
+  (interactive)
+  (let* ((category (dbf-displayed-record-field 'category))
+         (prev category)
+         (new category)
+         (index 0)
+         (found nil))
+    (maprecords
+     (lambda (record)
+       (setq new (record-field record 'category dbc-database)
+             index (1+ index))
+       (if (and (not catalogue-database-wraparound)
+                (or (>= index dbc-index)
+                    (string= new category)))
+           (maprecords-break)
+         (unless (string= prev new)
+           (setq found index
+                 prev new))))
+     dbc-database)
+    (if found
+        (db-jump-to-record found)
+      (if catalogue-database-wraparound
+          (db-first-record)
+        (signal 'beginning-of-catalogue nil))))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
+    (emacspeak-speak-line)))
+
+
+;; Editing functions:
 
 (defun catalogue-edit ()
   "Set display format convenient for editing."
@@ -343,6 +490,34 @@ Intended for use in the field change hook."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
+
+(defun catalogue-next-line-or-field ()
+  "Go to the next line or field in editing mode wrapping around the record if enabled."
+  (interactive)
+  (if (or catalogue-record-wraparound
+          (> (count-lines (point) (point-max)) 1))
+      (let ((prev dbf-this-field-index))
+        (db-next-line-or-field 1)
+        (when (and (featurep 'emacspeak)
+                   (interactive-p))
+          (unless (= prev dbf-this-field-index)
+            (emacspeak-auditory-icon 'select-object))
+          (emacspeak-speak-line)))
+    (signal 'end-of-buffer nil)))
+
+(defun catalogue-previous-line-or-field ()
+  "Go to the previous line or field in editing mode wrapping around the record if enabled."
+  (interactive)
+  (if (or catalogue-record-wraparound
+          (> (count-lines (point-min) (point)) 1))
+      (let ((prev dbf-this-field-index))
+        (db-previous-line-or-field 1)
+        (when (and (featurep 'emacspeak)
+                   (interactive-p))
+          (unless (= prev dbf-this-field-index)
+            (emacspeak-auditory-icon 'select-object))
+          (emacspeak-speak-line)))
+    (signal 'beginning-of-buffer nil)))
 
 
 ;;; That's all.
