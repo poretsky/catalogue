@@ -117,20 +117,9 @@ It should be `nil' outside this.")
          ((string-match "^ru_RU" lang) "ru")
          (t "en")))))
 
-(defun catalogue-count-records (&optional limit)
-  "Count records in the catalogue database up to limit
-if specified."
-  (let ((count 0))
-    (maprecords
-     (lambda (record)
-       (when (and limit (>= (setq count (1+ count)) limit))
-         (maprecords-break)))
-     dbc-database)
-    count))
-
 (defun catalogue-empty-p ()
   "Check if media catalogue database is empty."
-  (and (= 1 (catalogue-count-records 2))
+  (and (= 1 (database-no-of-records dbc-database))
        (or (null (dbf-displayed-record-field 'id))
            (string= (dbf-displayed-record-field 'id) ""))))
 
@@ -183,7 +172,7 @@ if specified."
 
 (defun catalogue-delete-record ()
   "Delete record or clear it if it is the only one."
-  (when (= 1 (catalogue-count-records 2))
+  (when (= 1 (database-no-of-records dbc-database))
     (db-add-record)
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field 'id "")
@@ -350,7 +339,7 @@ Intended for use in the field change hook."
   (let ((index dbc-index))
     (db-exit t)
     (catalogue-view)
-    (db-jump-to-record (catalogue-count-records index)))
+    (db-jump-to-record (min (database-no-of-records dbc-database) index)))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
