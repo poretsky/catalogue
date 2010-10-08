@@ -74,7 +74,7 @@
     (error "Database is modified and not saved"))
   (when (string= pattern "")
     (error "Empty pattern is not allowed"))
-  (let ((original-index dbc-index))
+  (let ((original-index (catalogue-index)))
     (let ((catalogue-searching-p t))
       (db-next-record 0)
       (db-first-field)
@@ -88,7 +88,7 @@
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon
-       (if (= dbc-index original-index)
+       (if (= (catalogue-index) original-index)
            'search-miss
          'search-hit)))))
 

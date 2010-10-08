@@ -134,6 +134,20 @@ It should be `nil' outside this.")
        (or (null (dbf-displayed-record-field 'id))
            (string= (dbf-displayed-record-field 'id) ""))))
 
+(defun catalogue-index ()
+  "Retrieve current record index in the database."
+  (if (db-summary-buffer-p)
+      dbs-index
+    dbc-index))
+
+(defun catalogue-this-record-field (fieldname)
+  "Get field value by name from the current record.
+Works in summary buffer as well."
+  (if (db-summary-buffer-p)
+      (dbs-in-data-display-buffer
+       (dbf-displayed-record-field fieldname))
+    (dbf-displayed-record-field fieldname)))
+
 (defun catalogue-setup ()
   "Setup media catalogue database."
   (setq catalogue-unknown-disk nil)
@@ -141,15 +155,19 @@ It should be `nil' outside this.")
     (db-toggle-internal-file-layout t))
   (use-local-map catalogue-view-map))
 
-(defun catalogue-edit-setup ()
-  "Setup record editing mode."
-  (use-local-map catalogue-edit-map))
-
 (defun catalogue-view-setup ()
   "Setup view mode."
   (if catalogue-unknown-disk
       (use-local-map catalogue-preview-map)
     (use-local-map catalogue-view-map)))
+
+(defun catalogue-edit-setup ()
+  "Setup record editing mode."
+  (use-local-map catalogue-edit-map))
+
+(defun catalogue-summary-setup ()
+  "Summary mode setup."
+  (use-local-map catalogue-summary-map))
 
 (defun catalogue-choose-display-format (record)
   "Choose an appropriate display format for the record."
@@ -318,15 +336,15 @@ Intended for use in the field change hook."
 With prefix argument jumps to the next disk set."
   (interactive "P")
   (if (and (not catalogue-database-wraparound)
-           (= dbc-index (database-no-of-records dbc-database)))
+           (= (catalogue-index) (database-no-of-records dbc-database)))
       (signal 'end-of-catalogue nil)
     (if arg
-        (let ((name (dbf-displayed-record-field 'name))
+        (let ((name (catalogue-this-record-field 'name))
               (index 0)
               (found nil))
           (maprecords
            (lambda (record)
-             (and (> (setq index (1+ index)) dbc-index)
+             (and (> (setq index (1+ index)) (catalogue-index))
                   (setq found (not (string= (record-field record 'name dbc-database) name)))
                   (maprecords-break)))
            dbc-database)
@@ -347,12 +365,12 @@ With prefix argument jumps to the next disk set."
 (defun catalogue-next-category ()
   "Jump to the next disk category wrapping around the database if enabled."
   (interactive)
-  (let ((category (dbf-displayed-record-field 'category))
+  (let ((category (catalogue-this-record-field 'category))
         (index 0)
         (found nil))
     (maprecords
      (lambda (record)
-       (and (> (setq index (1+ index)) dbc-index)
+       (and (> (setq index (1+ index)) (catalogue-index))
             (setq found (not (string= (record-field record 'category dbc-database) category)))
             (maprecords-break)))
      dbc-database)
@@ -374,10 +392,10 @@ With prefix argument jumps to the next disk set."
 With prefix argument jumps to the previous disk set."
   (interactive "P")
   (if (and (not catalogue-database-wraparound)
-           (= dbc-index 1))
+           (= (catalogue-index) 1))
       (signal 'beginning-of-catalogue nil)
     (if arg
-        (let* ((name (dbf-displayed-record-field 'name))
+        (let* ((name (catalogue-this-record-field 'name))
                (prev name)
                (new name)
                (index 0)
@@ -387,7 +405,7 @@ With prefix argument jumps to the previous disk set."
              (setq new (record-field record 'name dbc-database)
                    index (1+ index))
              (if (and (not catalogue-database-wraparound)
-                      (or (>= index dbc-index)
+                      (or (>= index (catalogue-index))
                           (string= new name)))
                  (maprecords-break)
                (unless (string= prev new)
@@ -411,7 +429,7 @@ With prefix argument jumps to the previous disk set."
 (defun catalogue-previous-category ()
   "Jump to the previous disk category wrapping around the database if enabled."
   (interactive)
-  (let* ((category (dbf-displayed-record-field 'category))
+  (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)
          (index 0)
@@ -421,7 +439,7 @@ With prefix argument jumps to the previous disk set."
        (setq new (record-field record 'category dbc-database)
              index (1+ index))
        (if (and (not catalogue-database-wraparound)
-                (or (>= index dbc-index)
+                (or (>= index (catalogue-index))
                     (string= new category)))
            (maprecords-break)
          (unless (string= prev new)
@@ -483,7 +501,7 @@ With prefix argument jumps to the previous disk set."
   (dbf-set-this-field-modified-p nil)
   (dbf-set-this-record-modified-p nil)
   (dbc-set-database-modified-p nil)
-  (let ((index dbc-index))
+  (let ((index (catalogue-index)))
     (db-exit t)
     (catalogue-view)
     (db-jump-to-record (min (database-no-of-records dbc-database) index)))

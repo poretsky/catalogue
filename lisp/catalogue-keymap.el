@@ -59,6 +59,7 @@
         ("\C-p" . catalogue-previous-category)
         ([C-home] . db-first-record)
         ([C-end] . db-last-record)
+        ("S" . db-summary)
         ("q" . db-exit))
       do
       (define-key catalogue-view-map (car binding) (cdr binding)))
@@ -148,6 +149,30 @@
     ["Revert field" db-revert-field t]
     ["Search by field" db-search-field t]
     ["Help on field" db-field-help t]))
+
+
+;; Key bindings for summary view:
+(defvar catalogue-summary-map (make-keymap)
+  "catalogue summary mode keymap.")
+(suppress-keymap catalogue-summary-map t)
+(loop for binding in
+      '(([down] . catalogue-next-record)
+        ("n" . catalogue-next-record)
+        ([up] . catalogue-previous-record)
+        ("p" . catalogue-previous-record)
+        ([next] . catalogue-next-category)
+        ("\C-n" . catalogue-next-category)
+        ([prior] . catalogue-previous-category)
+        ("\C-p" . catalogue-previous-category)
+        ([C-home] . db-first-record)
+        ([C-end] . db-last-record)
+        ("\C-s" . db-isearch-forward)
+        ("\C-r" . db-isearch-backward)
+        ("g" . db-summary)
+        ("?" . describe-mode)
+        ("q" . dbs-exit))
+      do
+      (define-key catalogue-summary-map (car binding) (cdr binding)))
 
 
 ;;; That's all.
