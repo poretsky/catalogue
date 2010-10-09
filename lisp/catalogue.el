@@ -111,6 +111,11 @@ Usually there is no need to set this option here."
 to force choosing special displayspec the list of searchable fields.
 It should be `nil' outside this.")
 
+(defvar catalogue-restore-summary nil
+  "This variable is set when summary buffer is temporary killed.
+Non-nil value denotes that summary should be restored afterwards.
+When it contains `t' the summary window becomes active.")
+
 
 (defun catalogue-db-open ()
   "Open existing user database or create a fresh one."
@@ -472,11 +477,17 @@ With prefix argument jumps to the previous disk set."
 (defun catalogue-edit ()
   "Set display format convenient for editing."
   (interactive)
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
+  (unless (or (db-data-display-buffer-p) (db-summary-buffer-p))
+    (error "Not in data display or summary buffer"))
   (when (and (not catalogue-unknown-disk)
              (catalogue-empty-p))
     (error "Catalogue is empty"))
+  (if (db-summary-buffer-p)
+      (progn
+        (dbs-exit)
+        (setq catalogue-restore-summary t))
+    (dbf-kill-summary)
+    (setq catalogue-restore-summary 0))
   (setq catalogue-editing-p t)
   (db-next-record 0)
   (db-first-field)
@@ -489,7 +500,7 @@ With prefix argument jumps to the previous disk set."
   "Commit current record to the database after editing."
   (interactive)
   (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
+    (error "Not in data display buffer"))
   (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
   (setq catalogue-editing-p nil)
@@ -497,6 +508,15 @@ With prefix argument jumps to the previous disk set."
   (db-save-database)
   (db-view-mode)
   (db-next-record 0)
+  (cond
+   ((eq catalogue-restore-summary t)
+    (setq catalogue-restore-summary nil)
+    (db-summary))
+   (catalogue-restore-summary
+    (setq catalogue-restore-summary nil)
+    (save-selected-window
+      (db-summary)))
+   (t nil))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
@@ -505,7 +525,7 @@ With prefix argument jumps to the previous disk set."
   "Finish editing without saving changes."
   (interactive)
   (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
+    (error "Not in data display buffer"))
   (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
   (dbf-set-this-field-modified-p nil)
@@ -515,6 +535,15 @@ With prefix argument jumps to the previous disk set."
     (db-exit t)
     (catalogue-view)
     (db-jump-to-record (min (database-no-of-records dbc-database) index)))
+  (cond
+   ((eq catalogue-restore-summary t)
+    (setq catalogue-restore-summary nil)
+    (db-summary))
+   (catalogue-restore-summary
+    (setq catalogue-restore-summary nil)
+    (save-selected-window
+      (db-summary)))
+   (t nil))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
