@@ -270,7 +270,7 @@ and return t if success."
                                    " -printf \"%A@%C@%T@%U%G%m%n%s%P\"")))
                       id)
                     nil nil 'raw-text t))
-           (draft (if (eq major-mode 'database-mode)
+           (draft (if (db-data-display-buffer-p)
                       (dbf-displayed-record)
                     (catalogue-db-open)
                     nil))
@@ -297,6 +297,7 @@ and return t if success."
       (if found
           (progn (setq catalogue-unknown-disk nil)
                  (db-jump-to-record index)
+                 (catalogue-summary-synch-position)
                  (when (and (featurep 'emacspeak)
                             (interactive-p))
                    (emacspeak-auditory-icon 'search-hit)))
@@ -338,7 +339,7 @@ and return t if success."
 (defun catalogue-reassign ()
   "Reassign current record to the inserted disk."
   (interactive)
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (catalogue-disk-identify)
   (if catalogue-unknown-disk
@@ -359,7 +360,7 @@ and return t if success."
 (defun catalogue-cancel-registration ()
   "Cancel new disk registration."
   (interactive)
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (unless (eq dbf-minor-mode 'view)
     (error "Not in viewing mode"))

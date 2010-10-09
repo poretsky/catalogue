@@ -148,6 +148,12 @@ Works in summary buffer as well."
        (dbf-displayed-record-field fieldname))
     (dbf-displayed-record-field fieldname)))
 
+(defun catalogue-summary-synch-position ()
+  "Synchronize position in summary buffer if any."
+  (when (db-data-display-buffer-p)
+    (dbf-in-summary-buffer
+     (dbs-move-to-proper-record))))
+
 (defun catalogue-setup ()
   "Setup media catalogue database."
   (setq catalogue-unknown-disk nil)
@@ -354,6 +360,7 @@ With prefix argument jumps to the next disk set."
                 (db-first-record)
               (signal 'end-of-catalogue nil))))
       (db-next-record 1))
+    (catalogue-summary-synch-position)
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon
@@ -379,6 +386,7 @@ With prefix argument jumps to the next disk set."
       (if catalogue-database-wraparound
           (db-first-record)
         (signal 'end-of-catalogue nil))))
+  (catalogue-summary-synch-position)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
@@ -418,6 +426,7 @@ With prefix argument jumps to the previous disk set."
                 (db-first-record)
               (signal 'beginning-of-catalogue nil))))
       (db-previous-record 1))
+    (catalogue-summary-synch-position)
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon
@@ -451,6 +460,7 @@ With prefix argument jumps to the previous disk set."
       (if catalogue-database-wraparound
           (db-first-record)
         (signal 'beginning-of-catalogue nil))))
+  (catalogue-summary-synch-position)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
@@ -462,7 +472,7 @@ With prefix argument jumps to the previous disk set."
 (defun catalogue-edit ()
   "Set display format convenient for editing."
   (interactive)
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (when (and (not catalogue-unknown-disk)
              (catalogue-empty-p))
@@ -478,7 +488,7 @@ With prefix argument jumps to the previous disk set."
 (defun catalogue-commit ()
   "Commit current record to the database after editing."
   (interactive)
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
@@ -494,7 +504,7 @@ With prefix argument jumps to the previous disk set."
 (defun catalogue-cancel ()
   "Finish editing without saving changes."
   (interactive)
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))

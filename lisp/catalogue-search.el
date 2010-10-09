@@ -66,7 +66,7 @@
                      'catalogue-search-field-history
                      (car (catalogue-searchable-fields)))
     (read-string "Enter search pattern: ")))
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (unless (eq dbf-minor-mode 'view)
     (error "This operation is only available in view mode"))

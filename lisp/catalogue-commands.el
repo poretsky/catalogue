@@ -39,7 +39,7 @@
   "Register this disk as borrowed.
 With prefix argument apply the action to the entire disk set."
   (interactive "P")
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (when (catalogue-native-p)
     (error "This disk is native, so cannot be borrowed"))
@@ -68,7 +68,7 @@ With prefix argument apply the action to the entire disk set."
   "Register this disk as lended.
 With prefix argument apply the action to the entire disk set."
   (interactive "sLender: \nP")
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field 'since
@@ -92,7 +92,7 @@ With prefix argument apply the action to the entire disk set."
   "Release borrowed or lended item.
 With prefix argument do this action on the entire set."
   (interactive "P")
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field 'lended nil)
@@ -113,7 +113,7 @@ With prefix argument do this action on the entire set."
   "Register this disk as alien.
 With prefix argument apply the action to the entire disk set."
   (interactive "sNew owner: \nP")
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (dbf-set-this-record-modified-p t)
   (dbf-displayed-record-set-field 'since nil)
@@ -134,7 +134,7 @@ With prefix argument apply the action to the entire disk set."
   "Forget this disk forever.
 With prefix argument unregisters entire disk set."
   (interactive "P")
-  (unless (eq major-mode 'database-mode)
+  (unless (db-data-display-buffer-p)
     (error "This operation can only be done from the database mode"))
   (when (y-or-n-p
          (format "Forget this %s forever? "
