@@ -156,6 +156,7 @@ With prefix argument unregisters entire disk set."
             (catalogue-delete-record)))
       (catalogue-delete-record))
     (db-save-database)
+    (dbf-fill-summary-buffer-and-move-to-proper-record)
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon 'delete-object))))
