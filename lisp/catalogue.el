@@ -486,8 +486,8 @@ With prefix argument jumps to the previous disk set."
       (progn
         (dbs-exit)
         (setq catalogue-restore-summary t))
-    (dbf-kill-summary)
-    (setq catalogue-restore-summary 0))
+    (setq catalogue-restore-summary (dbf-summary-buffer))
+    (dbf-kill-summary))
   (setq catalogue-editing-p t)
   (db-next-record 0)
   (db-first-field)

@@ -243,7 +243,13 @@ and return t if success."
 ;;; Interactive commands:
 
 (defun catalogue-disk-identify ()
-  "Identify currently inserted disk if any."
+  "Identify currently inserted disk if any and return it's index or nil.
+This function is designed as an additional catalogue entry point,
+so it pops up the database if necessary. For unknown disk the index card
+draft is constructed and placed into the database as a new record,
+but not committed. This draft can be further edited or deleted.
+Being called non-interactively this function does not affect
+catalogue database display in any way."
   (interactive)
   (shell-command-to-string
    (concat "eject -t "
@@ -270,10 +276,14 @@ and return t if success."
                                    " -printf \"%A@%C@%T@%U%G%m%n%s%P\"")))
                       id)
                     nil nil 'raw-text t))
-           (draft (if (db-data-display-buffer-p)
-                      (dbf-displayed-record)
-                    (catalogue-db-open)
-                    nil))
+           (draft
+            (cond
+             ((db-data-display-buffer-p)
+              (dbf-displayed-record))
+             ((db-summary-buffer-p)
+              (dbs-in-data-display-buffer (dbf-displayed-record)))
+             (t (catalogue-db-open)
+                nil)))
            (category (if data
                          (catalogue-guess-disk-category)
                        'music))
@@ -295,12 +305,15 @@ and return t if success."
            (maprecords-break)))
        dbc-database)
       (if found
-          (progn (setq catalogue-unknown-disk nil)
-                 (db-jump-to-record index)
-                 (catalogue-summary-synch-position)
-                 (when (and (featurep 'emacspeak)
-                            (interactive-p))
-                   (emacspeak-auditory-icon 'search-hit)))
+          (progn
+            (when (interactive-p)
+              (setq catalogue-unknown-disk nil)
+              (db-jump-to-record index)
+              (catalogue-summary-synch-position)
+              (when (featurep 'emacspeak)
+                (emacspeak-auditory-icon 'search-hit)
+                (emacspeak-speak-line)))
+            index)
         (if draft
             (unless (setq index (catalogue-find-hole-in-disk-set
                                  (record-field draft 'name dbc-database)))
@@ -310,58 +323,73 @@ and return t if success."
                   (setq index (record-field draft 'unit dbc-database)))))
           (setq draft (catalogue-find-hole))
           (setq index (and draft (record-field draft 'unit dbc-database))))
-        (setq catalogue-unknown-disk t)
-        (if (not (catalogue-empty-p))
-            (db-add-record)
-          (db-add-record)
-          (db-next-record 1)
-          (db-delete-record t))
-        (dbf-set-this-record-modified-p t)
-        (if index
-            (copy-record-to-record draft (dbf-displayed-record))
-          (dbf-displayed-record-set-field 'set 1)
-          (dbf-displayed-record-set-field 'category
-                                          (catalogue-category-name category))
-          (when cdinfo
-            (dbf-displayed-record-set-field 'name (car cdinfo))))
-        (when (and cdinfo
-                   (string-match (catalogue-category-name category)
-                                 (dbf-displayed-record-field 'category)))
-          (dbf-displayed-record-set-field 'description (cdr cdinfo)))
-        (dbf-displayed-record-set-field 'unit (or index 1))
-        (dbf-displayed-record-set-field 'media media)
-        (dbf-displayed-record-set-field-and-redisplay 'id id)
-        (db-view-mode)
+        (when (interactive-p)
+          (setq catalogue-unknown-disk t)
+          (if (db-summary-buffer-p)
+              (progn
+                (dbs-exit)
+                (setq catalogue-restore-summary t))
+            (setq catalogue-restore-summary (dbf-summary-buffer))
+            (dbf-kill-summary)))
+        (db-in-data-display-buffer
+         (if (not (catalogue-empty-p))
+             (db-add-record)
+           (db-add-record)
+           (db-next-record 1)
+           (db-delete-record t))
+         (dbf-set-this-record-modified-p t)
+         (if index
+             (copy-record-to-record draft (dbf-displayed-record))
+           (dbf-displayed-record-set-field 'set 1)
+           (dbf-displayed-record-set-field 'category
+                                           (catalogue-category-name category))
+           (when cdinfo
+             (dbf-displayed-record-set-field 'name (car cdinfo))))
+         (when (and cdinfo
+                    (string-match (catalogue-category-name category)
+                                  (dbf-displayed-record-field 'category)))
+           (dbf-displayed-record-set-field 'description (cdr cdinfo)))
+         (dbf-displayed-record-set-field 'unit (or index 1))
+         (dbf-displayed-record-set-field 'media media)
+         (if (not (interactive-p))
+             (dbf-displayed-record-set-field 'id id)
+           (dbf-displayed-record-set-field-and-redisplay 'id id)
+           (db-view-mode)))
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (emacspeak-auditory-icon 'search-miss))))))
+          (emacspeak-auditory-icon 'search-miss)
+          (emacspeak-speak-line))
+        nil))))
 
 (defun catalogue-reassign ()
   "Reassign current record to the inserted disk."
   (interactive)
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (catalogue-disk-identify)
-  (if catalogue-unknown-disk
-      (let ((new-id (dbf-displayed-record-field 'id)))
-        (db-delete-record t)
-        (dbf-set-this-record-modified-p t)
-        (dbf-displayed-record-set-field-and-redisplay 'id new-id)
-        (db-accept-record)
+  (unless (or (db-data-display-buffer-p) (db-summary-buffer-p))
+    (error "Not in data display or summary buffer"))
+  (if (catalogue-disk-identify)
+      (progn
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (emacspeak-auditory-icon 'select-object))
-        (message "Successfully reassigned"))
+          (emacspeak-auditory-icon 'warn-user))
+        (message "Already registered disk"))
+    (db-in-data-display-buffer
+     (let ((new-id (dbf-displayed-record-field 'id)))
+       (db-delete-record t)
+       (dbf-set-this-record-modified-p t)
+       (dbf-displayed-record-set-field-and-redisplay 'id new-id)
+       (db-accept-record)
+       (db-view-mode)
+       (db-save-database)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
-      (emacspeak-auditory-icon 'search-hit))
-    (message "Already registered disk")))
+      (emacspeak-auditory-icon 'save-object))
+    (message "Successfully reassigned")))
 
 (defun catalogue-cancel-registration ()
   "Cancel new disk registration."
   (interactive)
   (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
+    (error "Not in data display buffer"))
   (unless (eq dbf-minor-mode 'view)
     (error "Not in viewing mode"))
   (unless catalogue-unknown-disk
@@ -369,6 +397,15 @@ and return t if success."
   (catalogue-delete-record)
   (db-save-database)
   (use-local-map catalogue-view-map)
+  (cond
+   ((eq catalogue-restore-summary t)
+    (setq catalogue-restore-summary nil)
+    (db-summary))
+   (catalogue-restore-summary
+    (setq catalogue-restore-summary nil)
+    (save-selected-window
+      (db-summary)))
+   (t nil))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))

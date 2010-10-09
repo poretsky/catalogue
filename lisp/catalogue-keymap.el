@@ -35,6 +35,7 @@
 (suppress-keymap catalogue-view-map t)
 (loop for binding in 
       '(("/" . catalogue-disk-identify)
+        ("I" . catalogue-disk-identify)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
         ("s" . catalogue-search)
@@ -173,6 +174,9 @@
         ("g" . db-summary)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
+        ("/" . catalogue-disk-identify)
+        ("I" . catalogue-disk-identify)
+        ("\C-c\C-r" . catalogue-reassign)
         ("?" . describe-mode)
         ("q" . dbs-exit))
       do
