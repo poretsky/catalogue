@@ -320,6 +320,16 @@ Intended for use in the field change hook."
        (dbf-displayed-record-field 'since)
        (not (string= "" (dbf-displayed-record-field 'since)))))
 
+(defun catalogue-find-marked-records ()
+  "Get list of marked records indexes."
+  (let ((marked nil))
+    (maplinks
+     (lambda (link)
+       (when (link-markedp link)
+         (setq marked (cons maplinks-index marked))))
+     dbc-database)
+    marked))
+
 
 ;;; Interactive commands:
 
@@ -531,9 +541,15 @@ With prefix argument jumps to the previous disk set."
   (dbf-set-this-field-modified-p nil)
   (dbf-set-this-record-modified-p nil)
   (dbc-set-database-modified-p nil)
-  (let ((index (catalogue-index)))
+  (let ((index (catalogue-index))
+        (marked (catalogue-find-marked-records)))
     (db-exit t)
     (catalogue-view)
+    (mapcar
+     (lambda (item)
+       (db-jump-to-record item)
+       (db-mark-record 1))
+     marked)
     (db-jump-to-record (min (database-no-of-records dbc-database) index)))
   (cond
    ((eq catalogue-restore-summary t)
