@@ -33,133 +33,213 @@
   "Date display format.")
 
 
+(defun catalogue-mapitems (action items &optional quiet unpos unsafe)
+  "Apply specified action to the listed items. The first argument
+should be a function that works on the current record and returns
+`t' in the case of success or `nil' otherwise. The second argument
+should contain a list of record indexes to be processed.
+The third optional argument disables typing of the result message.
+The fourth optional argument disables restoring cursor position.
+The fifth optional argument disables saving the database."
+  (unless (db-data-display-buffer-p)
+    (error "Not in data display buffer"))
+  (let ((processed 0)
+        (to-process (length items))
+        (original-index dbc-index))
+    (mapcar
+     (lambda (item)
+       (db-jump-to-record item)
+       (when (funcall action)
+         (setq processed (1+ processed))))
+     items)
+    (unless (and unsafe (not (zerop processed)))
+      (db-save-database))
+    (unless unpos
+      (db-jump-to-record original-index))
+    (unless quiet
+      (when (featurep 'emacspeak)
+        (emacspeak-auditory-icon 'save-object))
+      (message "%d of %d items processed" processed to-process))))
+
+(defun catalogue-get-diskset ()
+  "Get list of record indexes for the diskset
+which displayed record belongs to."
+  (let ((name (dbf-displayed-record-field 'name))
+        (items nil))
+    (maplinks
+     (lambda (link)
+       (when (string= name (record-field (link-record link) 'name dbc-database))
+         (setq items (cons maplinks-index items))))
+     dbc-database)
+    items))
+
+
 ;;; Interactive commands:
 
 (defun catalogue-borrow (&optional entire)
-  "Register this disk as borrowed.
-With prefix argument apply the action to the entire disk set."
+  "Register this disk as borrowed. When called with prefix argument
+in data display buffer the action is applied to the entire disk set.
+In summary buffer prefix argument is not respected and action
+is applied to the marked items if any or to the current one."
   (interactive "P")
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (when (catalogue-native-p)
-    (error "This disk is native, so cannot be borrowed"))
-  (when (catalogue-borrowed-p)
-    (error "This disk is already borrowed"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field-and-redisplay 'since
-                                                (format-time-string
-                                                 catalogue-date-format))
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-         (and (string= name (record-field record 'name dbc-database))
-              (not (string= "" (record-field record 'owner dbc-database)))
-              (string= "" (record-field record 'since dbc-database))
-              (record-set-field record 'since
-                                (format-time-string catalogue-date-format)
-                                dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
+  (cond
+   (entire
+    (catalogue-mapitems 'catalogue-borrow (catalogue-get-diskset)))
+   ((db-summary-buffer-p)
+    (dbs-in-data-display-buffer
+     (let ((items (catalogue-find-marked-records)))
+       (if items
+           (catalogue-mapitems 'catalogue-borrow items)
+         (call-interactively 'catalogue-borrow)))))
+   (t
+    (if (catalogue-native-p)
+        (if (interactive-p)
+            (error "This disk is native, so cannot be borrowed")
+          nil)
+      (if (catalogue-borrowed-p)
+          (if (interactive-p)
+              (error "This disk is already borrowed")
+            nil)
+        (dbf-set-this-record-modified-p t)
+        (dbf-displayed-record-set-field-and-redisplay
+         'since
+         (format-time-string
+          catalogue-date-format))
+        (if (not (interactive-p))
+            t
+          (db-save-database)
+          (db-next-record 0)
+          (when (featurep 'emacspeak)
+            (emacspeak-auditory-icon 'save-object))))))))
 
 (defun catalogue-lend (lender &optional entire)
-  "Register this disk as lended.
-With prefix argument apply the action to the entire disk set."
+  "Register this disk as lended. When called with prefix argument
+in data display buffer the action is applied to the entire disk set.
+In summary buffer prefix argument is not respected and action
+is applied to the marked items if any or to the current one."
   (interactive "sLender: \nP")
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'since
-                                  (format-time-string catalogue-date-format))
-  (dbf-displayed-record-set-field-and-redisplay 'lended lender)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-         (when (string= name (record-field record 'name dbc-database))
-           (record-set-field record 'since
-                             (format-time-string catalogue-date-format)
-                             dbc-database)
-           (record-set-field record 'lended lender dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
+  (cond
+   (entire
+    (catalogue-mapitems 'catalogue-lend (catalogue-get-diskset)))
+   ((db-summary-buffer-p)
+    (dbs-in-data-display-buffer
+     (let ((items (catalogue-find-marked-records)))
+       (if items
+           (catalogue-mapitems 'catalogue-lend items)
+         (call-interactively 'catalogue-lend)))))
+   (t
+    (dbf-set-this-record-modified-p t)
+    (dbf-displayed-record-set-field
+     'since
+     (format-time-string catalogue-date-format))
+    (dbf-displayed-record-set-field-and-redisplay 'lended lender)
+    (if (not (interactive-p))
+        t
+      (db-save-database)
+      (db-next-record 0)
+      (when (featurep 'emacspeak)
+        (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-release (&optional entire)
-  "Release borrowed or lended item.
-With prefix argument do this action on the entire set."
+  "Release borrowed or lended item. When called with prefix argument
+in data display buffer the action is applied to the entire disk set.
+In summary buffer prefix argument is not respected and action
+is applied to the marked items if any or to the current one."
   (interactive "P")
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'lended nil)
-  (dbf-displayed-record-set-field-and-redisplay 'since nil)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-         (when (string= name (record-field record 'name dbc-database))
-           (record-set-field record 'lended nil dbc-database)
-           (record-set-field record 'since nil dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
+  (cond
+   (entire
+    (catalogue-mapitems 'catalogue-release (catalogue-get-diskset)))
+   ((db-summary-buffer-p)
+    (dbs-in-data-display-buffer
+     (let ((items (catalogue-find-marked-records)))
+       (if items
+           (catalogue-mapitems 'catalogue-release items)
+         (call-interactively 'catalogue-release)))))
+   (t
+    (dbf-set-this-record-modified-p t)
+    (dbf-displayed-record-set-field 'lended nil)
+    (dbf-displayed-record-set-field-and-redisplay 'since nil)
+    (if (not (interactive-p))
+        t
+      (db-save-database)
+      (db-next-record 0)
+      (when (featurep 'emacspeak)
+        (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-give-up (new-owner &optional entire)
-  "Register this disk as alien.
-With prefix argument apply the action to the entire disk set."
+  "Register this disk as alien. When called with prefix argument
+in data display buffer the action is applied to the entire disk set.
+In summary buffer prefix argument is not respected and action
+is applied to the marked items if any or to the current one."
   (interactive "sNew owner: \nP")
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field 'since nil)
-  (dbf-displayed-record-set-field-and-redisplay 'owner new-owner)
-  (when entire
-    (let ((name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-         (when (string= name (record-field record 'name dbc-database))
-           (record-set-field record 'since nil dbc-database)
-           (record-set-field record 'owner new-owner dbc-database)))
-       dbc-database)))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'select-object)))
+  (cond
+   (entire
+    (catalogue-mapitems 'catalogue-give-up (catalogue-get-diskset)))
+   ((db-summary-buffer-p)
+    (dbs-in-data-display-buffer
+     (let ((items (catalogue-find-marked-records)))
+       (if items
+           (catalogue-mapitems 'catalogue-give-up items)
+         (call-interactively 'catalogue-give-up)))))
+   (t
+    (dbf-set-this-record-modified-p t)
+    (dbf-displayed-record-set-field 'since nil)
+    (dbf-displayed-record-set-field-and-redisplay 'owner new-owner)
+    (if (not (interactive-p))
+        t
+      (db-save-database)
+      (db-next-record 0)
+      (when (featurep 'emacspeak)
+        (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-unregister (&optional entire)
-  "Forget this disk forever.
-With prefix argument unregisters entire disk set."
+  "Forget this disk forever. When called with prefix argument
+in data display buffer the action is applied to the entire disk set.
+In summary buffer prefix argument is not respected and action
+is applied to the marked items if any or to the current one."
   (interactive "P")
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (when (y-or-n-p
-         (format "Forget this %s forever? "
-                 (if entire
-                     "entire disk set"
-                   "disk")))
-    (if entire
-        (let ((name (dbf-displayed-record-field 'name))
-              (index 0))
-          (maprecords
-           (lambda (record)
-             (setq index (1+ index))
-             (when (string= name
-                            (record-field record 'name dbc-database))
-               (maprecords-break)))
-           dbc-database)
-          (db-jump-to-record index)
-          (while (string= (dbf-displayed-record-field 'name) name)
-            (catalogue-delete-record)))
-      (catalogue-delete-record))
-    (db-save-database)
-    (dbf-fill-summary-buffer-and-move-to-proper-record)
-    (when (and (featurep 'emacspeak)
-               (interactive-p))
-      (emacspeak-auditory-icon 'delete-object))))
+  (let ((items nil)
+        (processed 0))
+    (cond
+     (entire
+      (when (or (not (interactive-p))
+                (y-or-n-p "Forget this entire disk set forever? "))
+        (setq items (catalogue-get-diskset)
+              processed (length items))
+        (catalogue-mapitems 'catalogue-delete-record items t t)))
+     ((db-summary-buffer-p)
+      (dbs-in-data-display-buffer
+       (if (setq items (catalogue-find-marked-records))
+           (when (or (not (interactive-p))
+                     (y-or-n-p "Forget all marked items forever? "))
+             (setq processed (length items))
+             (let ((orig dbc-index))
+               (catalogue-mapitems
+                (lambda ()
+                  (when (< dbc-index orig)
+                    (setq orig (1- orig)))
+                  (catalogue-delete-record))
+                items t t)
+               (db-jump-to-record (max 1 orig))))
+         (when (or (not (interactive-p))
+                   (y-or-n-p "Forget this disk forever? "))
+           (catalogue-delete-record)
+           (db-save-database)
+           (setq processed 1)))))
+     (t
+      (when (or (not (interactive-p))
+                (y-or-n-p "Forget this disk forever? "))
+        (catalogue-delete-record)
+        (db-save-database)
+        (setq processed 1))))
+    (unless (zerop processed)
+      (if (catalogue-empty-p)
+          (dbf-kill-summary)
+        (dbf-fill-summary-buffer-and-move-to-proper-record))
+      (when (interactive-p)
+        (when (featurep 'emacspeak)
+          (emacspeak-auditory-icon 'delete-object))
+        (message "%d deletion%s done" processed (if (> processed 1) "s" ""))))))
 
 
 ;;; That's all.
