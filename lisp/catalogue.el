@@ -358,11 +358,8 @@ With prefix argument jumps to the next disk set."
     (catalogue-summary-synch-position)
     (when (and (featurep 'emacspeak)
                (interactive-p))
-      (emacspeak-auditory-icon
-       (if (eq dbf-minor-mode 'edit)
-           'scroll
-         'select-object))
-      (emacspeak-speak-line))))
+      (emacspeak-auditory-icon 'scroll)
+      (emacspeak-speak-current-window))))
 
 (defun catalogue-next-category ()
   "Jump to the next disk category wrapping around the database if enabled."
@@ -385,7 +382,7 @@ With prefix argument jumps to the next disk set."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
-    (emacspeak-speak-line)))
+    (dtk-speak (dbf-displayed-record-field 'category))))
 
 (put 'beginning-of-catalogue 'error-conditions '(error beginning-of-catalogue))
 (put 'beginning-of-catalogue 'error-message "Beginning of catalogue")
@@ -424,11 +421,8 @@ With prefix argument jumps to the previous disk set."
     (catalogue-summary-synch-position)
     (when (and (featurep 'emacspeak)
                (interactive-p))
-      (emacspeak-auditory-icon
-       (if (eq dbf-minor-mode 'edit)
-           'scroll
-         'select-object))
-      (emacspeak-speak-line))))
+      (emacspeak-auditory-icon 'scroll)
+      (emacspeak-speak-current-window))))
 
 (defun catalogue-previous-category ()
   "Jump to the previous disk category wrapping around the database if enabled."
@@ -459,7 +453,7 @@ With prefix argument jumps to the previous disk set."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
-    (emacspeak-speak-line)))
+    (dtk-speak (dbf-displayed-record-field 'category))))
 
 
 ;;; That's all.

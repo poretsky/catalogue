@@ -50,6 +50,8 @@ Position is advanced to the next record."
 
 ;;; Interactive commands:
 
+;; Entry point:
+
 (defun catalogue-summary ()
   "Pop up summary window if database is not empty
 or synchronize summary window when called from there."
@@ -71,6 +73,9 @@ or synchronize summary window when called from there."
       (emacspeak-auditory-icon 'open-object)
       (emacspeak-speak-line))))
 
+
+;; Marking:
+
 (defun catalogue-summary-mark (&optional arg)
   "Mark current record or full disk set if called with prefix argument.
 Position is advanced to the next record."
@@ -89,6 +94,85 @@ Position is advanced to the next record."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'deselect-object)
+    (emacspeak-speak-line)))
+
+
+;; Navigation:
+
+(put 'no-more-marks 'error-conditions '(error no-more-marks))
+(put 'no-more-marks 'error-message "No more marks")
+
+(defun catalogue-summary-next-record (&optional arg)
+  "Go to the next record in summary buffer.
+with prefix argument go to the next marked record."
+  (interactive "P")
+  (if arg
+      (let ((marks (catalogue-find-marked-records)))
+        (if (and marks
+                 (or catalogue-database-wraparound
+                     (< (catalogue-index) (car marks))))
+            (db-next-marked-record 1)
+          (signal 'no-more-marks nil)))
+    (catalogue-next-record))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'select-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-previous-record (&optional arg)
+  "Go to the previous record in summary buffer."
+  (interactive "P")
+  (if arg
+      (let ((marks (catalogue-find-marked-records)))
+        (if (and marks
+                 (or catalogue-database-wraparound
+                     (> (catalogue-index) (car (nreverse marks)))))
+            (db-previous-marked-record 1)
+          (signal 'no-more-marks nil)))
+    (catalogue-previous-record))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'select-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-first-record ()
+  "Go to the first record in summary buffer."
+  (interactive)
+  (dbs-in-data-display-buffer
+   (db-first-record)
+   (catalogue-summary-synch-position))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-last-record ()
+  "Go to the last record in summary buffer."
+  (interactive)
+  (dbs-in-data-display-buffer
+   (db-last-record)
+   (catalogue-summary-synch-position))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-scroll-up ()
+  "Scroll up in summary buffer."
+  (interactive)
+  (dbs-scroll-up)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-scroll-down ()
+  "Scroll down in summary buffer."
+  (interactive)
+  (dbs-scroll-down)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'scroll)
     (emacspeak-speak-line)))
 
 
