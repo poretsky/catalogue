@@ -140,6 +140,13 @@
           (emacspeak-speak-line)))
     (signal 'beginning-of-buffer nil)))
 
+(defun catalogue-newline ()
+  "Go to the next field or insert a new line in the multiline description."
+  (interactive)
+  (if (eq (dbf-this-field-name) 'description)
+      (call-interactively 'db-newline)
+    (call-interactively 'catalogue-next-line-or-field)))
+
 
 ;;; That's all.
 
