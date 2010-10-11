@@ -36,18 +36,12 @@ Position is advanced to the next record."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
   (if arg
-      (let ((name (catalogue-this-record-field 'name))
-            (index))
-        (maplinks
-         (lambda (link)
-           (when (string= (record-field (link-record link) 'name dbc-database) name)
-             (link-set-markedp link (not (zerop value)))
-             (setq index maplinks-index)
-             (dbs-in-data-display-buffer
-              (dbf-update-summary-item index link))))
-         dbc-database)
-        (db-summary)
-        (db-jump-to-record index))
+      (dbs-in-data-display-buffer
+       (catalogue-mapitems
+        (lambda ()
+          (db-mark-record value))
+        (nreverse (catalogue-get-diskset))
+        t t t))
     (db-mark-record value))
   (condition-case nil
       (catalogue-next-record)

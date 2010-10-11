@@ -64,29 +64,43 @@ The fifth optional argument disables saving the database."
        (when (funcall action)
          (setq processed (1+ processed))))
      items)
-    (unless (and unsafe (not (zerop processed)))
+    (unless (or unsafe (zerop processed))
       (db-save-database))
     (unless unpos
       (db-jump-to-record original-index))
+    (catalogue-summary-synch-position)
     (unless quiet
       (when (featurep 'emacspeak)
         (emacspeak-auditory-icon 'save-object))
       (message "%d of %d items processed" processed to-process))))
 
-(defun catalogue-get-diskset ()
-  "Get list of record indexes for the diskset
-which displayed record belongs to."
-  (let ((name (dbf-displayed-record-field 'name))
-        (items nil))
+(defun catalogue-list-by (field content &optional unmatched)
+  "Get list of record indexes where specified field is matched
+or unmatched to given content depending on the third optional argument.
+Matching is done by `string='. Returned list is in the reverse order."
+  (let ((items nil))
     (maplinks
      (lambda (link)
-       (when (string= name (record-field (link-record link) 'name dbc-database))
-         (setq items (cons maplinks-index items))))
+       (if unmatched
+           (unless (string= content (record-field (link-record link) field dbc-database))
+             (setq items (cons maplinks-index items)))
+         (when (string= content (record-field (link-record link) field dbc-database))
+           (setq items (cons maplinks-index items)))))
      dbc-database)
     items))
 
+(defun catalogue-list-the-same (field)
+  "Get list of record indexes with the same specified field content
+as the current one. Returned list is in the reverse order."
+  (catalogue-list-by field (dbf-displayed-record-field field)))
+
+(defun catalogue-get-diskset ()
+  "Get list of record indexes for the diskset
+which displayed record belongs to. Returned list is in the reverse order."
+  (catalogue-list-the-same 'name))
+
 (defun catalogue-find-marked-records ()
-  "Get list of marked records indexes."
+  "Get list of marked records indexes. Returned list is in the reverse order."
   (let ((marked nil))
     (maplinks
      (lambda (link)
