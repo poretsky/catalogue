@@ -47,8 +47,6 @@
 (autoload 'catalogue-unregister "catalogue-commands" "Forget this disk forever." t)
 
 (autoload 'catalogue-summary "catalogue-summary" "Pop up summary window or synchronize it.")
-(autoload 'catalogue-summary-mark "catalogue-summary" "Mark current record or full disk set if called with prefix argument.")
-(autoload 'catalogue-summary-unmark "catalogue-summary" "Unmark current record or full disk set if called with prefix argument.")
 
 (autoload 'catalogue-search "catalogue-search" "Search record by specified field and pattern." t)
 
