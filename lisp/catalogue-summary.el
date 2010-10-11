@@ -23,9 +23,9 @@
 
 ;;; Requirements:
 
-(eval-when-compile (require 'cl))
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-util)
 
 
 ;;; Code:

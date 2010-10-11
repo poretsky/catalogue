@@ -35,6 +35,8 @@
 
 (autoload 'catalogue-view "catalogue" "View CD/DVD catalogue." t)
 
+(autoload 'catalogue-edit "catalogue-edit" "Edit current catalogue record." t)
+
 (autoload 'catalogue-disk-identify "catalogue-media" "Try to identify currently inserted disk in catalogue." t)
 (autoload 'catalogue-reassign "catalogue-media" "Reassign current catalogue record to the inserted disk." t)
 

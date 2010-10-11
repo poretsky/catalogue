@@ -111,11 +111,6 @@ Usually there is no need to set this option here."
 to force choosing special displayspec the list of searchable fields.
 It should be `nil' outside this.")
 
-(defvar catalogue-restore-summary nil
-  "This variable is set when summary buffer is temporary killed.
-Non-nil value denotes that summary should be restored afterwards.
-When it contains `t' the summary window becomes active.")
-
 
 (defun catalogue-db-open ()
   "Open existing user database or create a fresh one."
@@ -209,16 +204,6 @@ Works in summary buffer as well."
 (defun catalogue-initialize-record (record database)
   "Initialize newly created record."
   (record-set-field record 'id catalogue-no-id database))
-
-(defun catalogue-delete-record ()
-  "Delete record or clear it if it is the only one."
-  (when (= 1 (database-no-of-records dbc-database))
-    (db-add-record)
-    (dbf-set-this-record-modified-p t)
-    (dbf-displayed-record-set-field 'id "")
-    (db-view-mode)
-    (db-next-record 1))
-  (db-delete-record t))
 
 (defun catalogue-find-hole-in-disk-set (name)
   "Return first free unit number in the disk set or nil if the set is full."
@@ -319,16 +304,6 @@ Intended for use in the field change hook."
        (not (string= "" (dbf-displayed-record-field 'owner)))
        (dbf-displayed-record-field 'since)
        (not (string= "" (dbf-displayed-record-field 'since)))))
-
-(defun catalogue-find-marked-records ()
-  "Get list of marked records indexes."
-  (let ((marked nil))
-    (maplinks
-     (lambda (link)
-       (when (link-markedp link)
-         (setq marked (cons maplinks-index marked))))
-     dbc-database)
-    marked))
 
 
 ;;; Interactive commands:
@@ -480,117 +455,6 @@ With prefix argument jumps to the previous disk set."
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
     (emacspeak-speak-line)))
-
-
-;; Editing functions:
-
-(defun catalogue-edit ()
-  "Set display format convenient for editing."
-  (interactive)
-  (unless (or (db-data-display-buffer-p) (db-summary-buffer-p))
-    (error "Not in data display or summary buffer"))
-  (when (and (not catalogue-unknown-disk)
-             (catalogue-empty-p))
-    (error "Catalogue is empty"))
-  (if (db-summary-buffer-p)
-      (progn
-        (dbs-exit)
-        (setq catalogue-restore-summary t))
-    (setq catalogue-restore-summary (dbf-summary-buffer))
-    (dbf-kill-summary))
-  (setq catalogue-editing-p t)
-  (db-next-record 0)
-  (db-first-field)
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'open-object)
-    (emacspeak-speak-line)))
-
-(defun catalogue-commit ()
-  "Commit current record to the database after editing."
-  (interactive)
-  (unless (db-data-display-buffer-p)
-    (error "Not in data display buffer"))
-  (unless (eq dbf-minor-mode 'edit)
-    (error "Not in editing mode"))
-  (setq catalogue-editing-p nil)
-  (db-sort t)
-  (db-save-database)
-  (db-view-mode)
-  (db-next-record 0)
-  (cond
-   ((eq catalogue-restore-summary t)
-    (setq catalogue-restore-summary nil)
-    (db-summary))
-   (catalogue-restore-summary
-    (setq catalogue-restore-summary nil)
-    (save-selected-window
-      (db-summary)))
-   (t nil))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'close-object)))
-
-(defun catalogue-cancel ()
-  "Finish editing without saving changes."
-  (interactive)
-  (unless (db-data-display-buffer-p)
-    (error "Not in data display buffer"))
-  (unless (eq dbf-minor-mode 'edit)
-    (error "Not in editing mode"))
-  (dbf-set-this-field-modified-p nil)
-  (dbf-set-this-record-modified-p nil)
-  (dbc-set-database-modified-p nil)
-  (let ((index (catalogue-index))
-        (marked (catalogue-find-marked-records)))
-    (db-exit t)
-    (catalogue-view)
-    (mapcar
-     (lambda (item)
-       (db-jump-to-record item)
-       (db-mark-record 1))
-     marked)
-    (db-jump-to-record (min (database-no-of-records dbc-database) index)))
-  (cond
-   ((eq catalogue-restore-summary t)
-    (setq catalogue-restore-summary nil)
-    (db-summary))
-   (catalogue-restore-summary
-    (setq catalogue-restore-summary nil)
-    (save-selected-window
-      (db-summary)))
-   (t nil))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'close-object)))
-
-(defun catalogue-next-line-or-field ()
-  "Go to the next line or field in editing mode wrapping around the record if enabled."
-  (interactive)
-  (if (or catalogue-record-wraparound
-          (> (count-lines (point) (point-max)) 1))
-      (let ((prev dbf-this-field-index))
-        (db-next-line-or-field 1)
-        (when (and (featurep 'emacspeak)
-                   (interactive-p))
-          (unless (= prev dbf-this-field-index)
-            (emacspeak-auditory-icon 'select-object))
-          (emacspeak-speak-line)))
-    (signal 'end-of-buffer nil)))
-
-(defun catalogue-previous-line-or-field ()
-  "Go to the previous line or field in editing mode wrapping around the record if enabled."
-  (interactive)
-  (if (or catalogue-record-wraparound
-          (> (count-lines (point-min) (point)) 1))
-      (let ((prev dbf-this-field-index))
-        (db-previous-line-or-field 1)
-        (when (and (featurep 'emacspeak)
-                   (interactive-p))
-          (unless (= prev dbf-this-field-index)
-            (emacspeak-auditory-icon 'select-object))
-          (emacspeak-speak-line)))
-    (signal 'beginning-of-buffer nil)))
 
 
 ;;; That's all.

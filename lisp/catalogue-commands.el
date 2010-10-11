@@ -25,53 +25,13 @@
 
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-util)
 
 
 ;;; Code:
 
 (defconst catalogue-date-format "%B %e, %Y"
   "Date display format.")
-
-
-(defun catalogue-mapitems (action items &optional quiet unpos unsafe)
-  "Apply specified action to the listed items. The first argument
-should be a function that works on the current record and returns
-`t' in the case of success or `nil' otherwise. The second argument
-should contain a list of record indexes to be processed.
-The third optional argument disables typing of the result message.
-The fourth optional argument disables restoring cursor position.
-The fifth optional argument disables saving the database."
-  (unless (db-data-display-buffer-p)
-    (error "Not in data display buffer"))
-  (let ((processed 0)
-        (to-process (length items))
-        (original-index dbc-index))
-    (mapcar
-     (lambda (item)
-       (db-jump-to-record item)
-       (when (funcall action)
-         (setq processed (1+ processed))))
-     items)
-    (unless (and unsafe (not (zerop processed)))
-      (db-save-database))
-    (unless unpos
-      (db-jump-to-record original-index))
-    (unless quiet
-      (when (featurep 'emacspeak)
-        (emacspeak-auditory-icon 'save-object))
-      (message "%d of %d items processed" processed to-process))))
-
-(defun catalogue-get-diskset ()
-  "Get list of record indexes for the diskset
-which displayed record belongs to."
-  (let ((name (dbf-displayed-record-field 'name))
-        (items nil))
-    (maplinks
-     (lambda (link)
-       (when (string= name (record-field (link-record link) 'name dbc-database))
-         (setq items (cons maplinks-index items))))
-     dbc-database)
-    items))
 
 
 ;;; Interactive commands:
