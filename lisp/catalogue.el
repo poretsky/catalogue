@@ -112,6 +112,8 @@ to force choosing special displayspec the list of searchable fields.
 It should be `nil' outside this.")
 
 
+;; Basic utility functions:
+
 (defun catalogue-db-open ()
   "Open existing user database or create a fresh one."
   (unless (file-exists-p catalogue-resource-directory)
@@ -134,6 +136,17 @@ It should be `nil' outside this.")
        (or (null (dbf-displayed-record-field 'id))
            (string= (dbf-displayed-record-field 'id) ""))))
 
+(defun catalogue-native-p ()
+  "Check if displayed disk is native."
+  (string= "" (dbf-displayed-record-field 'owner)))
+
+(defun catalogue-borrowed-p ()
+  "Check if displayed disk is borrowed."
+  (and (dbf-displayed-record-field 'owner)
+       (not (string= "" (dbf-displayed-record-field 'owner)))
+       (dbf-displayed-record-field 'since)
+       (not (string= "" (dbf-displayed-record-field 'since)))))
+
 (defun catalogue-index ()
   "Retrieve current record index in the database."
   (if (db-summary-buffer-p)
@@ -153,6 +166,29 @@ Works in summary buffer as well."
   (when (db-data-display-buffer-p)
     (dbf-in-summary-buffer
      (dbs-move-to-proper-record))))
+
+(defun catalogue-find-hole-in-disk-set (name)
+  "Return first free unit number in the disk set or nil if the set is full."
+  (let ((units nil)
+        (limit 0))
+    (maprecords
+     (lambda (record)
+       (when (string= name
+                      (record-field record 'name dbc-database))
+         (setq units
+               (append units
+                       (list (record-field record 'unit dbc-database))))
+         (setq limit (record-field record 'set dbc-database))))
+     dbc-database)
+    (do ((x (sort units '<) (cdr x))
+         (i 1 (1+ i)))
+        ((or (null x) (< i (car x)))
+         (if (> i limit)
+             nil
+           i)))))
+
+
+;; EDB hooks:
 
 (defun catalogue-setup ()
   "Setup media catalogue database."
@@ -204,26 +240,6 @@ Works in summary buffer as well."
 (defun catalogue-initialize-record (record database)
   "Initialize newly created record."
   (record-set-field record 'id catalogue-no-id database))
-
-(defun catalogue-find-hole-in-disk-set (name)
-  "Return first free unit number in the disk set or nil if the set is full."
-  (let ((units nil)
-        (limit 0))
-    (maprecords
-     (lambda (record)
-       (when (string= name
-                      (record-field record 'name dbc-database))
-         (setq units
-               (append units
-                       (list (record-field record 'unit dbc-database))))
-         (setq limit (record-field record 'set dbc-database))))
-     dbc-database)
-    (do ((x (sort units '<) (cdr x))
-         (i 1 (1+ i)))
-        ((or (null x) (< i (car x)))
-         (if (> i limit)
-             nil
-           i)))))
 
 (defun catalogue-validate-field-change (field old new)
   "Field change validator.
@@ -293,17 +309,6 @@ Intended for use in the field change hook."
 (defun catalogue-accept-record (record)
   "Some catalogue specific actions concerning record commitment."
   (setq catalogue-unknown-disk nil))
-
-(defun catalogue-native-p ()
-  "Check if displayed disk is native."
-  (string= "" (dbf-displayed-record-field 'owner)))
-
-(defun catalogue-borrowed-p ()
-  "Check if displayed disk is borrowed."
-  (and (dbf-displayed-record-field 'owner)
-       (not (string= "" (dbf-displayed-record-field 'owner)))
-       (dbf-displayed-record-field 'since)
-       (not (string= "" (dbf-displayed-record-field 'since)))))
 
 
 ;;; Interactive commands:
