@@ -40,24 +40,26 @@
 (defun catalogue-searchable-fields ()
   "Get list of searchable fields."
   (unless catalogue-searchable-fields-list
-    (let ((catalogue-searching-p t))
-      (db-next-record 0)
-      (db-last-field)
-      (setq catalogue-searchable-fields-list
-            (do ((result nil (nconc result (list (symbol-name (dbf-this-field-name)))))
-                 (i 0 (1+ i)))
-                ((>= i dbf-displayspecs-length)
-                 result)
-              (db-next-field 1))))
-    (db-view-mode)
-    (db-next-record 0))
+    (db-in-data-display-buffer
+     (let ((catalogue-searching-p t))
+       (db-next-record 0)
+       (db-last-field)
+       (setq catalogue-searchable-fields-list
+             (do ((result nil (nconc result (list (symbol-name (dbf-this-field-name)))))
+                  (i 0 (1+ i)))
+                 ((>= i dbf-displayspecs-length)
+                  result)
+               (db-next-field 1))))
+     (db-view-mode)
+     (db-next-record 0)))
   catalogue-searchable-fields-list)
 
 
 ;;; Interactive commands:
 
 (defun catalogue-search (field pattern)
-  "Search record by specified field and pattern."
+  "Search record by specified field and pattern.
+Being called from summary buffer additionally marks all found records."
   (interactive
    (list
     (completing-read "Choose field to search by: "
@@ -66,31 +68,31 @@
                      'catalogue-search-field-history
                      (car (catalogue-searchable-fields)))
     (read-string "Enter search pattern: ")))
-  (unless (db-data-display-buffer-p)
-    (error "This operation can only be done from the database mode"))
-  (unless (eq dbf-minor-mode 'view)
-    (error "This operation is only available in view mode"))
-  (when dbc-database-modified-p
-    (error "Database is modified and not saved"))
   (when (string= pattern "")
     (error "Empty pattern is not allowed"))
-  (let ((original-index (catalogue-index)))
-    (let ((catalogue-searching-p t))
-      (db-next-record 0)
-      (db-first-field)
-      (do ((fields (catalogue-searchable-fields) (cdr fields)))
-          ((or (null fields)
-               (string= field (car fields))))
-        (db-next-field 1))
-      (db-search-field pattern))
-    (db-view-mode)
+  (let ((original-index (catalogue-index))
+        (mark (db-summary-buffer-p)))
+    (db-in-data-display-buffer
+     (let ((catalogue-searching-p t))
+       (db-next-record 0)
+       (db-first-field)
+       (do ((fields (catalogue-searchable-fields) (cdr fields)))
+           ((or (null fields)
+                (string= field (car fields))))
+         (db-next-field 1))
+       (db-search-field pattern mark))
+     (db-view-mode))
     (db-next-record 0)
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon
        (if (= (catalogue-index) original-index)
            'search-miss
-         'search-hit)))))
+         'search-hit))
+      (unless (= (catalogue-index) original-index)
+        (if (db-summary-buffer-p)
+            (emacspeak-speak-line)
+          (emacspeak-speak-current-window))))))
 
 
 ;;; That's all.

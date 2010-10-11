@@ -163,6 +163,7 @@
         ([C-end] . catalogue-summary-last-record)
         ("\C-s" . db-isearch-forward)
         ("\C-r" . db-isearch-backward)
+        ("s" . catalogue-search)
         ("g" . catalogue-summary)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
