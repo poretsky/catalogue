@@ -153,7 +153,7 @@ is applied to the marked items if any or to the current one."
         (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-unregister (&optional entire)
-  "Forget this disk forever. When called with prefix argument
+  "Forget this item forever. When called with prefix argument
 in data display buffer the action is applied to the entire disk set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
@@ -161,18 +161,15 @@ is applied to the marked items if any or to the current one."
   (let ((items nil)
         (processed 0))
     (cond
-     (entire
-      (when (or (not (interactive-p))
-                (y-or-n-p "Forget this entire disk set forever? "))
-        (setq items (catalogue-get-diskset)
-              processed (length items))
-        (catalogue-mapitems 'catalogue-delete-record items t t)))
      ((db-summary-buffer-p)
       (dbs-in-data-display-buffer
-       (if (setq items (catalogue-find-marked-records))
+       (setq items (catalogue-find-marked-records)
+             processed (length items))
+       (if items
            (when (or (not (interactive-p))
-                     (y-or-n-p "Forget all marked items forever? "))
-             (setq processed (length items))
+                     (y-or-n-p
+                      (format "Forget %d marked item%s forever? "
+                              processed (if (> processed 1) "s" ""))))
              (let ((orig dbc-index))
                (catalogue-mapitems
                 (lambda ()
@@ -182,13 +179,19 @@ is applied to the marked items if any or to the current one."
                 items t t)
                (db-jump-to-record (max 1 orig))))
          (when (or (not (interactive-p))
-                   (y-or-n-p "Forget this disk forever? "))
+                   (y-or-n-p "Forget this item forever? "))
            (catalogue-delete-record)
            (db-save-database)
            (setq processed 1)))))
+     (entire
+      (when (or (not (interactive-p))
+                (y-or-n-p "Forget this entire disk set forever? "))
+        (setq items (catalogue-get-diskset)
+              processed (length items))
+        (catalogue-mapitems 'catalogue-delete-record items t t)))
      (t
       (when (or (not (interactive-p))
-                (y-or-n-p "Forget this disk forever? "))
+                (y-or-n-p "Forget this item forever? "))
         (catalogue-delete-record)
         (db-save-database)
         (setq processed 1))))

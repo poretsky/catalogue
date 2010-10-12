@@ -292,38 +292,38 @@ catalogue database display in any way."
                        (when (eq category 'mp3-music)
                          (catalogue-guess-mp3-disk-info))
                      (catalogue-guess-audio-disk-info)))
-           (index 0)
            (found nil))
       (when data
         (shell-command-to-string (concat "umount "
                                          catalogue-cd-dvd-mountpoint)))
       (maprecords
        (lambda (record)
-         (setq index (1+ index))
          (when (string= id
                         (record-field record 'id dbc-database))
-           (setq found t)
+           (setq found maplinks-index)
            (maprecords-break)))
        dbc-database)
       (if found
           (progn
             (when (interactive-p)
               (setq catalogue-unknown-disk nil)
-              (db-jump-to-record index)
+              (db-jump-to-record found)
               (catalogue-summary-synch-position)
               (when (featurep 'emacspeak)
                 (emacspeak-auditory-icon 'search-hit)
-                (emacspeak-speak-line)))
-            index)
+                (if (db-summary-buffer-p)
+                    (emacspeak-speak-line)
+                  (emacspeak-speak-current-window))))
+            found)
         (if draft
-            (unless (setq index (catalogue-find-hole-in-disk-set
+            (unless (setq found (catalogue-find-hole-in-disk-set
                                  (record-field draft 'name dbc-database)))
               (let ((hole (catalogue-find-hole)))
                 (when hole
                   (setq draft hole)
-                  (setq index (record-field draft 'unit dbc-database)))))
+                  (setq found (record-field draft 'unit dbc-database)))))
           (setq draft (catalogue-find-hole))
-          (setq index (and draft (record-field draft 'unit dbc-database))))
+          (setq found (and draft (record-field draft 'unit dbc-database))))
         (when (interactive-p)
           (setq catalogue-unknown-disk t)
           (if (db-summary-buffer-p)
@@ -339,7 +339,7 @@ catalogue database display in any way."
            (db-next-record 1)
            (db-delete-record t))
          (dbf-set-this-record-modified-p t)
-         (if index
+         (if found
              (copy-record-to-record draft (dbf-displayed-record))
            (dbf-displayed-record-set-field 'set 1)
            (dbf-displayed-record-set-field 'category
@@ -350,7 +350,7 @@ catalogue database display in any way."
                     (string-match (catalogue-category-name category)
                                   (dbf-displayed-record-field 'category)))
            (dbf-displayed-record-set-field 'description (cdr cdinfo)))
-         (dbf-displayed-record-set-field 'unit (or index 1))
+         (dbf-displayed-record-set-field 'unit (or found 1))
          (dbf-displayed-record-set-field 'media media)
          (if (not (interactive-p))
              (dbf-displayed-record-set-field 'id id)
@@ -359,7 +359,7 @@ catalogue database display in any way."
         (when (and (featurep 'emacspeak)
                    (interactive-p))
           (emacspeak-auditory-icon 'search-miss)
-          (emacspeak-speak-line))
+          (emacspeak-speak-current-window))
         nil))))
 
 (defun catalogue-reassign ()

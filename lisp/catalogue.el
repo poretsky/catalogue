@@ -176,8 +176,7 @@ Works in summary buffer as well."
        (when (string= name
                       (record-field record 'name dbc-database))
          (setq units
-               (append units
-                       (list (record-field record 'unit dbc-database))))
+               (cons (record-field record 'unit dbc-database) units))
          (setq limit (record-field record 'set dbc-database))))
      dbc-database)
     (do ((x (sort units '<) (cdr x))
@@ -341,16 +340,16 @@ With prefix argument jumps to the next disk set."
       (signal 'end-of-catalogue nil)
     (if arg
         (let ((name (catalogue-this-record-field 'name))
-              (index 0)
               (found nil))
           (maprecords
            (lambda (record)
-             (and (> (setq index (1+ index)) (catalogue-index))
-                  (setq found (not (string= (record-field record 'name dbc-database) name)))
+             (and (> maplinks-index (catalogue-index))
+                  (not (string= (record-field record 'name dbc-database) name))
+                  (setq found maplinks-index)
                   (maprecords-break)))
            dbc-database)
           (if found
-              (db-jump-to-record index)
+              (db-jump-to-record found)
             (if catalogue-database-wraparound
                 (db-first-record)
               (signal 'end-of-catalogue nil))))
@@ -365,16 +364,16 @@ With prefix argument jumps to the next disk set."
   "Jump to the next disk category wrapping around the database if enabled."
   (interactive)
   (let ((category (catalogue-this-record-field 'category))
-        (index 0)
         (found nil))
     (maprecords
      (lambda (record)
-       (and (> (setq index (1+ index)) (catalogue-index))
-            (setq found (not (string= (record-field record 'category dbc-database) category)))
+       (and (> maplinks-index (catalogue-index))
+            (not (string= (record-field record 'category dbc-database) category))
+            (setq found maplinks-index)
             (maprecords-break)))
      dbc-database)
     (if found
-        (db-jump-to-record index)
+        (db-jump-to-record found)
       (if catalogue-database-wraparound
           (db-first-record)
         (signal 'end-of-catalogue nil))))
@@ -398,18 +397,16 @@ With prefix argument jumps to the previous disk set."
         (let* ((name (catalogue-this-record-field 'name))
                (prev name)
                (new name)
-               (index 0)
                (found nil))
           (maprecords
            (lambda (record)
-             (setq new (record-field record 'name dbc-database)
-                   index (1+ index))
+             (setq new (record-field record 'name dbc-database))
              (if (and (not catalogue-database-wraparound)
-                      (or (>= index (catalogue-index))
+                      (or (>= maplinks-index (catalogue-index))
                           (string= new name)))
                  (maprecords-break)
                (unless (string= prev new)
-                 (setq found index
+                 (setq found maplinks-index
                        prev new))))
            dbc-database)
           (if found
@@ -430,18 +427,16 @@ With prefix argument jumps to the previous disk set."
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)
-         (index 0)
          (found nil))
     (maprecords
      (lambda (record)
-       (setq new (record-field record 'category dbc-database)
-             index (1+ index))
+       (setq new (record-field record 'category dbc-database))
        (if (and (not catalogue-database-wraparound)
-                (or (>= index (catalogue-index))
+                (or (>= maplinks-index (catalogue-index))
                     (string= new category)))
            (maprecords-break)
          (unless (string= prev new)
-           (setq found index
+           (setq found maplinks-index
                  prev new))))
      dbc-database)
     (if found

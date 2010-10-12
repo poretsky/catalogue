@@ -74,20 +74,33 @@ The fifth optional argument disables saving the database."
         (emacspeak-auditory-icon 'save-object))
       (message "%d of %d items processed" processed to-process))))
 
+(defun catalogue-links-gather (link-predicate)
+  "Apply specified predicate to each record link and return
+list of indexes of satisfying ones in reverse order."
+  (let ((gathered nil))
+    (maplinks
+     (lambda (link)
+       (when (funcall link-predicate link)
+         (setq gathered (cons maplinks-index gathered))))
+     dbc-database)
+    gathered))
+
+(defun catalogue-records-gather (record-predicate)
+  "Apply specified predicate to each record and return
+list of indexes of satisfying ones in reverse order."
+  (catalogue-links-gather
+   (lambda (link)
+     (funcall record-predicate (link-record link)))))
+
 (defun catalogue-list-by (field content &optional unmatched)
   "Get list of record indexes where specified field is matched
 or unmatched to given content depending on the third optional argument.
 Matching is done by `string='. Returned list is in the reverse order."
-  (let ((items nil))
-    (maplinks
-     (lambda (link)
-       (if unmatched
-           (unless (string= content (record-field (link-record link) field dbc-database))
-             (setq items (cons maplinks-index items)))
-         (when (string= content (record-field (link-record link) field dbc-database))
-           (setq items (cons maplinks-index items)))))
-     dbc-database)
-    items))
+  (catalogue-records-gather
+   (lambda (record)
+     (if unmatched
+         (not (string= content (record-field record field dbc-database)))
+       (string= content (record-field record field dbc-database))))))
 
 (defun catalogue-list-the-same (field)
   "Get list of record indexes with the same specified field content
@@ -101,13 +114,7 @@ which displayed record belongs to. Returned list is in the reverse order."
 
 (defun catalogue-find-marked-records ()
   "Get list of marked records indexes. Returned list is in the reverse order."
-  (let ((marked nil))
-    (maplinks
-     (lambda (link)
-       (when (link-markedp link)
-         (setq marked (cons maplinks-index marked))))
-     dbc-database)
-    marked))
+  (catalogue-links-gather 'link-markedp))
 
 
 ;;; That's all.
