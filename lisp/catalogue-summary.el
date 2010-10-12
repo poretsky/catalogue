@@ -104,32 +104,47 @@ Position is advanced to the next record."
 
 (defun catalogue-summary-next-record (&optional arg)
   "Go to the next record in summary buffer.
-with prefix argument go to the next marked record."
+with prefix argument go to the next disk set."
   (interactive "P")
-  (if arg
-      (let ((marks (catalogue-find-marked-records)))
-        (if (and marks
-                 (or catalogue-database-wraparound
-                     (< (catalogue-index) (car marks))))
-            (db-next-marked-record 1)
-          (signal 'no-more-marks nil)))
-    (catalogue-next-record))
+  (catalogue-next-record arg)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'select-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-next-mark ()
+  "Go to the next marked record."
+  (interactive)
+  (let ((marks (catalogue-find-marked-records)))
+    (if (and marks
+             (or catalogue-database-wraparound
+                 (< (catalogue-index) (car marks))))
+        (db-next-marked-record 1)
+      (signal 'no-more-marks nil)))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'select-object)
     (emacspeak-speak-line)))
 
 (defun catalogue-summary-previous-record (&optional arg)
-  "Go to the previous record in summary buffer."
+  "Go to the previous record in summary buffer.
+With prefix argument go to the previous disk set."
   (interactive "P")
-  (if arg
-      (let ((marks (catalogue-find-marked-records)))
-        (if (and marks
-                 (or catalogue-database-wraparound
-                     (> (catalogue-index) (car (nreverse marks)))))
-            (db-previous-marked-record 1)
-          (signal 'no-more-marks nil)))
-    (catalogue-previous-record))
+  (catalogue-previous-record arg)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'select-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-previous-mark ()
+  "Go to the previous marked record."
+  (interactive)
+  (let ((marks (catalogue-find-marked-records)))
+    (if (and marks
+             (or catalogue-database-wraparound
+                 (> (catalogue-index) (car (nreverse marks)))))
+        (db-previous-marked-record 1)
+      (signal 'no-more-marks nil)))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'select-object)
