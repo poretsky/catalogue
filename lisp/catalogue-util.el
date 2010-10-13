@@ -52,6 +52,8 @@ should be a function that works on the current record and returns
 should contain a list of record indexes to be processed.
 The third optional argument disables typing of the result message.
 The fourth optional argument disables restoring cursor position.
+If it is `t' then the last processed record becomes current
+and is redisplayed if necessary.
 The fifth optional argument disables saving the database."
   (unless (db-data-display-buffer-p)
     (error "Not in data display buffer"))
@@ -60,7 +62,7 @@ The fifth optional argument disables saving the database."
         (original-index dbc-index))
     (mapcar
      (lambda (item)
-       (db-jump-to-record item)
+       (db-select-record item)
        (when (funcall action)
          (setq processed (1+ processed))))
      items)
