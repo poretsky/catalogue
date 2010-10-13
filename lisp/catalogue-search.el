@@ -43,11 +43,11 @@
     (db-in-data-display-buffer
      (let ((catalogue-searching-p t))
        (db-next-record 0)
-       (db-first-field)
+       (db-last-field)
        (setq catalogue-searchable-fields-list
-             (do ((result nil (cons (symbol-name (dbf-this-field-name)) result))
-                  (i 0 (1+ i)))
-                 ((>= i dbf-displayspecs-length)
+             (do ((result (list (symbol-name (dbf-this-field-name)))
+                          (cons (symbol-name (dbf-this-field-name)) result)))
+                 ((zerop dbf-this-field-index)
                   result)
                (db-previous-field 1))))
      (db-view-mode)
