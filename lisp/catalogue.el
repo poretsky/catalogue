@@ -106,10 +106,14 @@ Usually there is no need to set this option here."
 (defvar catalogue-editing-p nil
   "Edit mode indicator.")
 
-(defvar catalogue-searching-p nil
-  "This variable is used internally by the search functions
-to force choosing special displayspec the list of searchable fields.
-It should be `nil' outside this.")
+(defvar catalogue-affected-set nil
+  "Stores association list of items and new set volumes.")
+
+(defvar catalogue-operational-buffer-name nil
+  "Catalogue operational buffer name.")
+
+(defvar catalogue-current-item-set nil
+  "Stores current item set volume after searching a place for new unit.")
 
 
 ;; Basic utility functions:
@@ -169,22 +173,57 @@ Works in summary buffer as well."
 
 (defun catalogue-find-hole-in-disk-set (name)
   "Return first free unit number in the disk set or nil if the set is full."
-  (let ((units nil)
-        (limit 0))
+  (setq catalogue-current-item-set 0)
+  (let ((units nil))
     (maprecords
      (lambda (record)
-       (when (string= name
-                      (record-field record 'name dbc-database))
-         (setq units
-               (cons (record-field record 'unit dbc-database) units))
-         (setq limit (record-field record 'set dbc-database))))
+       (when (and (string= name
+                           (record-field record 'name dbc-database))
+                  (not (= maplinks-index dbc-index)))
+         (push (record-field record 'unit dbc-database) units)
+         (setq catalogue-current-item-set
+               (max (record-field record 'set dbc-database)
+                    catalogue-current-item-set))))
      dbc-database)
     (do ((x (sort units '<) (cdr x))
          (i 1 (1+ i)))
         ((or (null x) (< i (car x)))
-         (if (> i limit)
+         (if (> i catalogue-current-item-set)
              nil
            i)))))
+
+(defun catalogue-new-unit ()
+  "Add a new unit to the item set of current record
+correcting the `set' field. Return a number of added unit."
+  (setq catalogue-current-item-set 0)
+  (let ((name (dbf-displayed-record-field 'name)))
+    (maprecords
+     (lambda (record)
+       (and (string= name (record-field record 'name dbc-database))
+            (not (= maplinks-index dbc-index))
+            (setq catalogue-current-item-set
+                  (max (record-field record 'unit dbc-database)
+                       catalogue-current-item-set))))
+     dbc-database)
+    (dbf-displayed-record-set-field
+     'set
+     (setq catalogue-current-item-set (1+ catalogue-current-item-set))))
+  catalogue-current-item-set)
+
+(defun catalogue-item-unique-p ()
+  "Check whether the current item is unique by name and unit number."
+  (let ((name (dbf-displayed-record-field 'name))
+        (unit (dbf-displayed-record-field 'unit))
+        (flag t))
+    (maprecords
+     (lambda (record)
+       (when (and (string= name (record-field record 'name dbc-database))
+                  (= unit (record-field record 'unit dbc-database))
+                  (not (= maplinks-index dbc-index)))
+         (setq flag nil)
+         (maprecords-break)))
+     dbc-database)
+    flag))
 
 
 ;; EDB hooks:
@@ -214,9 +253,12 @@ Works in summary buffer as well."
   "Choose an appropriate display format for the record."
   (let ((db-format-file-path catalogue-display-format-path))
     (cond
-     (catalogue-searching-p
-      (db-change-format "searchable fields"))
+     ((string= catalogue-operational-buffer-name (buffer-name))
+      (db-change-format "operational"))
      (catalogue-editing-p
+      (let ((affected (assoc dbc-index catalogue-affected-set)))
+        (when affected
+          (dbf-displayed-record-set-field 'set (cdr affected))))
       (db-change-format "edit disk info"))
      (catalogue-unknown-disk
       (db-change-format "disk registration form"))
@@ -241,73 +283,72 @@ Works in summary buffer as well."
   (record-set-field record 'id catalogue-no-id database))
 
 (defun catalogue-validate-field-change (field old new)
-  "Field change validator.
-Ensures that the new unit number is within the disk set.
-Intended for use in the field change hook."
+  "Validate some fields change. Intended for field change hook."
   (cond
+   ((eq field 'name)
+    (if (or (null new)
+            (string= new ""))
+        (progn
+          (dbf-displayed-record-set-field 'name old)
+          (ding)
+          (message "Empty name is not allowed")
+          t)
+      (dbf-displayed-record-set-field
+       'unit (or (catalogue-find-hole-in-disk-set new)
+                 (catalogue-new-unit)))
+      (dbf-displayed-record-set-field 'set catalogue-current-item-set)
+      t))
    ((eq field 'unit)
-    (if (and (>= new 1)
-             (<= new (dbf-displayed-record-field 'set)))
-        nil
-      (dbf-displayed-record-set-field field old)
-      (message "Unit number is out of range")
+    (if (integerp new)
+        (if (> new 0)
+            (if (catalogue-item-unique-p)
+                nil
+              (dbf-displayed-record-set-field 'unit old)
+              (ding)
+              (message "Duplicate item")
+              t)
+          (dbf-displayed-record-set-field 'unit old)
+          (ding)
+          (message "Unit number must be > 0")
+          t)
+      (dbf-displayed-record-set-field 'unit old)
       (ding)
+      (message "Unit number must be integer")
       t))
    ((eq field 'set)
-    (let ((maxunit (dbf-displayed-record-field 'unit))
-          (name (dbf-displayed-record-field 'name)))
-      (maprecords
-       (lambda (record)
-         (and (string= name (record-field record 'name dbc-database))
-              (< maxunit
-                 (record-field record 'unit dbc-database))
-              (setq maxunit
-                    (record-field record 'unit dbc-database))))
-       dbc-database)
-      (if (>= new maxunit)
+    (if (integerp new)
+        (let ((amount 0)
+              (name (dbf-displayed-record-field 'name)))
           (maprecords
            (lambda (record)
-             (and (string= name
-                           (record-field record 'name dbc-database))
-                  (record-set-field record 'set new dbc-database)))
+             (when (string= name (record-field 'name dbc-database))
+               (setq amount (max (record-field 'set dbc-database) amount))))
            dbc-database)
-        (dbf-displayed-record-set-field field old)
-        (message "Cannot shrink this disk set")
-        (ding)
-        t)))
-   ((eq field 'name)
-    (if (and new (not (string= "" new)))
-        (let ((name nil)
-              (set (dbf-displayed-record-field 'set))
-              (unit (dbf-displayed-record-field 'unit)))
-          (maprecords
-           (lambda (record)
-             (when (string= new (record-field record 'name dbc-database))
-               (setq name new)
-               (setq set (record-field record 'set dbc-database))
-               (maprecords-break)))
-           dbc-database)
-          (if (null name)
+          (if (>= new amount)
               nil
-            (if (and (> set 1)
-                     (setq unit (catalogue-find-hole-in-disk-set name)))
-                (progn
-                  (dbf-displayed-record-set-field 'set set)
-                  (dbf-displayed-record-set-field 'unit unit)
-                  t)
-              (dbf-displayed-record-set-field field old)
-              (message "The name is not unique")
-              (ding)
-              nil)))
-      (dbf-displayed-record-set-field field old)
-      (message "Empty name")
+            (dbf-displayed-record-set-field 'set amount)
+            (ding)
+            (message "This set can not be further shrinked")
+            t))
+      (dbf-displayed-record-set-field 'set old)
       (ding)
-      nil))
-   (t nil)))
+      (message "Units amount in set must be integer")))))
 
 (defun catalogue-accept-record (record)
   "Some catalogue specific actions concerning record commitment."
-  (setq catalogue-unknown-disk nil))
+  (unless (string= catalogue-operational-buffer-name (buffer-name))
+    (setq catalogue-unknown-disk nil)
+    (let ((name (record-field record 'name dbc-database))
+          (amount (record-field record 'set dbc-database)))
+      (maprecords
+       (lambda (record)
+         (when (and (string= name (record-field record 'name dbc-database))
+                    (not (= maplinks-index dbc-index)))
+           (let ((listed (assoc maplinks-index catalogue-affected-set)))
+             (if listed
+                 (setcdr listed amount)
+               (push (cons maplinks-index amount) catalogue-affected-set)))))
+       dbc-database))))
 
 
 ;;; Interactive commands:
@@ -319,7 +360,6 @@ Intended for use in the field change hook."
   (interactive)
   (setq catalogue-unknown-disk nil)
   (setq catalogue-editing-p nil)
-  (setq catalogue-searching-p nil)
   (catalogue-db-open)
   (when (and (featurep 'emacspeak)
              (interactive-p))

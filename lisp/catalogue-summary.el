@@ -37,11 +37,11 @@ Position is advanced to the next record."
     (error "Not in summary buffer"))
   (if arg
       (dbs-in-data-display-buffer
-       (catalogue-mapitems
-        (lambda ()
+       (mapcar
+        (lambda (item)
+          (db-select-record item)
           (db-mark-record value))
-        (nreverse (catalogue-get-diskset))
-        t t t))
+        (nreverse (catalogue-get-diskset))))
     (db-mark-record value))
   (condition-case nil
       (catalogue-next-record)

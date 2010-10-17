@@ -26,6 +26,7 @@
 (eval-when-compile (require 'cl))
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-util)
 
 
 ;;; Code:
@@ -40,18 +41,17 @@
 (defun catalogue-searchable-fields ()
   "Get list of searchable fields."
   (unless catalogue-searchable-fields-list
-    (db-in-data-display-buffer
-     (let ((catalogue-searching-p t))
-       (db-next-record 0)
-       (db-last-field)
-       (setq catalogue-searchable-fields-list
-             (do ((result (list (symbol-name (dbf-this-field-name)))
-                          (cons (symbol-name (dbf-this-field-name)) result)))
-                 ((zerop dbf-this-field-index)
-                  result)
-               (db-previous-field 1))))
-     (db-view-mode)
-     (db-next-record 0)))
+    (with-current-buffer (catalogue-operational-buffer)
+      (db-next-record 0)
+      (db-last-field)
+      (setq catalogue-searchable-fields-list
+            (do ((result (list (symbol-name (dbf-this-field-name)))
+                         (cons (symbol-name (dbf-this-field-name)) result)))
+                ((zerop dbf-this-field-index)
+                 result)
+              (db-previous-field 1)))
+      (db-view-mode)
+      (db-next-record 0)))
   catalogue-searchable-fields-list)
 
 
@@ -71,25 +71,41 @@ Being called from summary buffer additionally marks all found records."
   (when (string= pattern "")
     (error "Empty pattern is not allowed"))
   (let ((original-index (catalogue-index))
-        (mark (db-summary-buffer-p)))
-    (db-in-data-display-buffer
-     (let ((catalogue-searching-p t))
-       (db-next-record 0)
-       (db-first-field)
-       (do ((fields (catalogue-searchable-fields) (cdr fields)))
-           ((or (null fields)
-                (string= field (car fields))))
-         (db-next-field 1))
-       (db-search-field pattern mark))
-     (db-view-mode))
-    (db-next-record 0)
+        (amount 0)
+        (hits)
+        (hit-index))
+    (with-current-buffer (catalogue-operational-buffer)
+      (db-jump-to-record original-index)
+      (db-first-field)
+      (do ((fields (catalogue-searchable-fields) (cdr fields)))
+          ((or (null fields)
+               (string= field (car fields))))
+        (db-next-field 1))
+      (db-unmark-all)
+      (db-search-field pattern t)
+      (and (setq hits (catalogue-find-marked-records))
+           (setq hit-index dbc-index)
+           (db-unmark-all)))
+    (when hits
+      (setq amount (length hits))
+      (when (db-summary-buffer-p)
+        (dbs-in-data-display-buffer
+         (mapcar
+          (lambda (item)
+            (db-select-record item)
+            (db-mark-record 1))
+          hits)))
+      (db-jump-to-record hit-index)
+      (when (db-data-display-buffer-p)
+        (catalogue-summary-synch-position)))
+    (message "%d item%s found" amount (if (= 1 amount) "" "s"))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon
-       (if (= (catalogue-index) original-index)
-           'search-miss
-         'search-hit))
-      (unless (= (catalogue-index) original-index)
+       (if hits
+           'search-hit
+         'search-miss))
+      (when hits
         (if (db-summary-buffer-p)
             (emacspeak-speak-line)
           (emacspeak-speak-current-window))))))

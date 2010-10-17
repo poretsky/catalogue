@@ -43,14 +43,14 @@ In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "P")
   (cond
-   (entire
-    (catalogue-mapitems 'catalogue-borrow (catalogue-get-diskset)))
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
      (let ((items (catalogue-find-marked-records)))
        (if items
            (catalogue-mapitems 'catalogue-borrow items)
          (call-interactively 'catalogue-borrow)))))
+   (entire
+    (catalogue-mapitems 'catalogue-borrow (catalogue-get-diskset)))
    (t
     (if (catalogue-native-p)
         (if (interactive-p)
@@ -79,14 +79,22 @@ In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "sLender: \nP")
   (cond
-   (entire
-    (catalogue-mapitems 'catalogue-lend (catalogue-get-diskset)))
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
      (let ((items (catalogue-find-marked-records)))
        (if items
-           (catalogue-mapitems 'catalogue-lend items)
-         (call-interactively 'catalogue-lend)))))
+           (catalogue-mapitems
+            (lambda ()
+              (catalogue-lend lender))
+            items)
+         (catalogue-lend lender)
+         (db-save-database)
+         (db-next-record)))))
+   (entire
+    (catalogue-mapitems
+     (lambda ()
+       (catalogue-lend lender))
+     (catalogue-get-diskset)))
    (t
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field
@@ -96,9 +104,10 @@ is applied to the marked items if any or to the current one."
     (if (not (interactive-p))
         t
       (db-save-database)
-      (db-next-record 0)
-      (when (featurep 'emacspeak)
-        (emacspeak-auditory-icon 'save-object))))))
+      (db-next-record 0))))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'save-object)))
 
 (defun catalogue-release (&optional entire)
   "Release borrowed or lended item. When called with prefix argument
@@ -107,14 +116,14 @@ In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "P")
   (cond
-   (entire
-    (catalogue-mapitems 'catalogue-release (catalogue-get-diskset)))
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
      (let ((items (catalogue-find-marked-records)))
        (if items
            (catalogue-mapitems 'catalogue-release items)
          (call-interactively 'catalogue-release)))))
+   (entire
+    (catalogue-mapitems 'catalogue-release (catalogue-get-diskset)))
    (t
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field 'lended nil)
@@ -132,25 +141,36 @@ in data display buffer the action is applied to the entire disk set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "sNew owner: \nP")
-  (cond
-   (entire
-    (catalogue-mapitems 'catalogue-give-up (catalogue-get-diskset)))
-   ((db-summary-buffer-p)
-    (dbs-in-data-display-buffer
-     (let ((items (catalogue-find-marked-records)))
-       (if items
-           (catalogue-mapitems 'catalogue-give-up items)
-         (call-interactively 'catalogue-give-up)))))
-   (t
-    (dbf-set-this-record-modified-p t)
-    (dbf-displayed-record-set-field 'since nil)
-    (dbf-displayed-record-set-field-and-redisplay 'owner new-owner)
-    (if (not (interactive-p))
-        t
-      (db-save-database)
-      (db-next-record 0)
+  (if (db-summary-buffer-p)
+      (dbs-in-data-display-buffer
+       (let ((items (catalogue-find-marked-records)))
+         (if items
+             (catalogue-mapitems
+              (lambda ()
+                (catalogue-give-up new-owner))
+              items)
+           (unless (catalogue-give-up new-owner)
+             (error "This is not native item"))
+           (db-save-database)
+           (db-next-record 0))))
+    (if entire
+        (catalogue-mapitems
+         (lambda ()
+           (catalogue-give-up new-owner))
+         (catalogue-get-diskset))
+      (if (not (catalogue-native-p))
+          (when (interactive-p)
+            (error "This is not native item"))
+        (dbf-set-this-record-modified-p t)
+        (dbf-displayed-record-set-field 'since nil)
+        (dbf-displayed-record-set-field-and-redisplay 'owner new-owner)
+        (when (interactive-p)
+          (db-save-database)
+          (db-next-record 0)))))
+  (if (interactive-p)
       (when (featurep 'emacspeak)
-        (emacspeak-auditory-icon 'save-object))))))
+        (emacspeak-auditory-icon 'save-object))
+    dbf-this-record-modified-p))
 
 (defun catalogue-unregister (&optional entire)
   "Forget this item forever. When called with prefix argument
@@ -170,32 +190,24 @@ is applied to the marked items if any or to the current one."
                      (y-or-n-p
                       (format "Forget %d marked item%s forever? "
                               processed (if (> processed 1) "s" ""))))
-             (let ((orig dbc-index))
-               (catalogue-mapitems
-                (lambda ()
-                  (when (< dbc-index orig)
-                    (setq orig (1- orig)))
-                  (catalogue-delete-record))
-                items t t)
-               (db-jump-to-record (max 1 orig))))
+             (catalogue-delete items))
          (when (or (not (interactive-p))
                    (y-or-n-p "Forget this item forever? "))
-           (catalogue-delete-record)
-           (db-save-database)
+           (catalogue-delete)
            (setq processed 1)))))
      (entire
       (when (or (not (interactive-p))
                 (y-or-n-p "Forget this entire disk set forever? "))
         (setq items (catalogue-get-diskset)
               processed (length items))
-        (catalogue-mapitems 'catalogue-delete-record items t t)))
+        (catalogue-delete items)))
      (t
       (when (or (not (interactive-p))
                 (y-or-n-p "Forget this item forever? "))
-        (catalogue-delete-record)
-        (db-save-database)
+        (catalogue-delete)
         (setq processed 1))))
     (unless (zerop processed)
+      (db-save-database)
       (if (catalogue-empty-p)
           (dbf-kill-summary)
         (dbf-fill-summary-buffer-and-move-to-proper-record))

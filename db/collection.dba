@@ -36,7 +36,7 @@
         ("transit disk info" . "transit.fmt")
         ("disk registration form" . "register.fmt")
         ("edit disk info" . "edit.fmt")
-        ("searchable fields" . "searchable.fmt")))
+        ("operational" . "operational.fmt")))
 (dbf-set-summary-format "\\name (\\unit/\\set)")
 (add-hook 'db-after-read-hooks 'catalogue-setup)
 (add-hook 'db-view-mode-hooks 'catalogue-view-setup)

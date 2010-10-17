@@ -34,47 +34,81 @@
 Non-nil value denotes that summary should be restored afterwards.
 When it contains `t' the summary window becomes active.")
 
+(defvar catalogue-operational-buffer nil
+  "Invisible buffer for internal use.")
 
-(defun catalogue-delete-record ()
-  "Delete record or clear it if it is the only one."
-  (when (= 1 (database-no-of-records dbc-database))
-    (db-add-record)
-    (dbf-set-this-record-modified-p t)
-    (dbf-displayed-record-set-field 'id "")
-    (db-view-mode)
-    (db-next-record 1))
-  (db-delete-record t))
 
-(defun catalogue-mapitems (action items &optional quiet unpos unsafe)
+(defun catalogue-synchronize-with (orig-buffer)
+  "Synchronize current data display buffer with specified original."
+  (db-copy-buffer-local-variables orig-buffer)
+  (setq dbf-this-record (make-record dbc-database))
+  (db-emergency-restore-format t))
+
+(defun catalogue-operational-buffer ()
+  "Get operational buffer synchronized with current
+data display buffer creating it if necessary."
+  (db-in-data-display-buffer
+   (dbf-process-current-record-maybe t)
+   (let ((orig-buffer (current-buffer))
+         (database dbc-database))
+     (unless (buffer-live-p catalogue-operational-buffer)
+       (setq catalogue-operational-buffer (db-make-data-display-buffer database nil))
+       (database-set-data-display-buffers
+        database
+        (cons catalogue-operational-buffer (database-data-display-buffers database)))
+       (with-current-buffer catalogue-operational-buffer
+         (rename-buffer " *Catalogue workspace* " t)
+         (setq catalogue-operational-buffer-name (buffer-name))))
+     (with-current-buffer catalogue-operational-buffer
+       (catalogue-synchronize-with orig-buffer))
+     catalogue-operational-buffer)))
+
+(defun catalogue-delete (&optional items)
+  "Delete record or clear it if it is the only one.
+If optional argument is specified it is treated as a list of record indexes
+to be deleted in the descending order. In this case all the work
+will be done in the operational buffer that will then be properly
+synchronized with current data display buffer."
+  (if items
+      (let ((original-index dbc-index))
+        (with-current-buffer (catalogue-operational-buffer)
+          (mapcar
+           (lambda (item)
+             (db-jump-to-record item)
+             (catalogue-delete)
+             (when (< item original-index)
+               (setq original-index (1- original-index))))
+           items)
+          (db-jump-to-record (min (max 1 original-index) (database-no-of-records dbc-database))))
+        (catalogue-synchronize-with catalogue-operational-buffer))
+    (when (= 1 (database-no-of-records dbc-database))
+      (db-add-record)
+      (dbf-set-this-record-modified-p t)
+      (dbf-displayed-record-set-field 'id "")
+      (db-view-mode)
+      (db-next-record 1))
+    (db-delete-record t)))
+
+(defun catalogue-mapitems (action items)
   "Apply specified action to the listed items. The first argument
 should be a function that works on the current record and returns
 `t' in the case of success or `nil' otherwise. The second argument
-should contain a list of record indexes to be processed.
-The third optional argument disables typing of the result message.
-The fourth optional argument disables restoring cursor position.
-If it is `t' then the last processed record becomes current
-and is redisplayed if necessary.
-The fifth optional argument disables saving the database."
+should contain a list of record indexes to be processed."
   (unless (db-data-display-buffer-p)
     (error "Not in data display buffer"))
   (let ((processed 0)
-        (to-process (length items))
-        (original-index dbc-index))
-    (mapcar
-     (lambda (item)
-       (db-select-record item)
-       (when (funcall action)
-         (setq processed (1+ processed))))
-     items)
-    (unless (or unsafe (zerop processed))
-      (db-save-database))
-    (unless unpos
-      (db-jump-to-record original-index))
-    (catalogue-summary-synch-position)
-    (unless quiet
-      (when (featurep 'emacspeak)
-        (emacspeak-auditory-icon 'save-object))
-      (message "%d of %d items processed" processed to-process))))
+        (to-process (length items)))
+    (with-current-buffer (catalogue-operational-buffer)
+      (mapcar
+       (lambda (item)
+         (db-jump-to-record item)
+         (when (funcall action)
+           (setq processed (1+ processed))))
+       items)
+      (unless (zerop processed)
+        (db-save-database)))
+    (db-next-record 0)
+    (message "%d of %d items processed" processed to-process)))
 
 (defun catalogue-links-gather (link-predicate)
   "Apply specified predicate to each record link and return
