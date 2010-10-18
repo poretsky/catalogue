@@ -288,7 +288,7 @@ correcting the `set' field. Return a number of added unit."
   (record-set-field record 'id catalogue-no-id database))
 
 (defun catalogue-validate-field-change (field old new)
-  "Validate some fields change. Intended for field change hook."
+  "Validate mandatory fields change. Intended for field change hook."
   (cond
    ((eq field 'name)
     (if (or (null new)

@@ -23,6 +23,7 @@
 
 ;;; Requirements:
 
+(eval-when-compile (require 'cl))
 (require 'database)
 (require 'catalogue)
 
@@ -117,7 +118,7 @@ list of indexes of satisfying ones in reverse order."
     (maplinks
      (lambda (link)
        (when (funcall link-predicate link)
-         (setq gathered (cons maplinks-index gathered))))
+         (push maplinks-index gathered)))
      dbc-database)
     gathered))
 
