@@ -68,7 +68,7 @@
     ["Edit" catalogue-edit (not (catalogue-empty-p))]
     ["Search" catalogue-search (not (catalogue-empty-p))]
     ["Identify disk" catalogue-disk-identify t]
-    ["Borrow" catalogue-borrow (not (or (catalogue-empty-p) (catalogue-native-p) (catalogue-borrowed-p)))]
+    ["Borrow" catalogue-borrow (not (catalogue-empty-p))]
     ["Lend" catalogue-lend (not (catalogue-empty-p))]
     ["Release" catalogue-release (not (catalogue-empty-p))]
     ["Give up" catalogue-give-up (not (catalogue-empty-p))]

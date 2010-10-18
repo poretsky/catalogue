@@ -140,16 +140,24 @@ Usually there is no need to set this option here."
        (or (null (dbf-displayed-record-field 'id))
            (string= (dbf-displayed-record-field 'id) ""))))
 
-(defun catalogue-native-p ()
-  "Check if displayed disk is native."
-  (string= "" (dbf-displayed-record-field 'owner)))
+(defun catalogue-native-p (&optional item)
+  "Check if displayed or specified item is native."
+  (or (null (record-field (or item (dbf-displayed-record)) 'owner dbc-database))
+      (string= "" (record-field (or item (dbf-displayed-record)) 'owner dbc-database))))
 
-(defun catalogue-borrowed-p ()
-  "Check if displayed disk is borrowed."
-  (and (dbf-displayed-record-field 'owner)
-       (not (string= "" (dbf-displayed-record-field 'owner)))
-       (dbf-displayed-record-field 'since)
-       (not (string= "" (dbf-displayed-record-field 'since)))))
+(defun catalogue-released-p (&optional item)
+  "Check if displayed or specified item is neither lended nor borrowed."
+  (or (null (record-field (or item (dbf-displayed-record)) 'since dbc-database))
+      (string= "" (record-field (or item (dbf-displayed-record)) 'since dbc-database))))
+
+(defun catalogue-lended-p (&optional item)
+  "Check if displayed or specified item is lended."
+  (and (record-field (or item (dbf-displayed-record)) 'lended dbc-database)
+       (not (string= "" (record-field (or item (dbf-displayed-record)) 'lended dbc-database)))))
+
+(defun catalogue-borrowed-p (&optional item)
+  "Check if displayed or specified item is borrowed."
+  (not (or (catalogue-native-p item) (catalogue-released-p item))))
 
 (defun catalogue-index ()
   "Retrieve current record index in the database."
@@ -264,24 +272,22 @@ correcting the `set' field. Return a number of added unit."
       (let ((affected (assoc dbc-index catalogue-affected-set)))
         (when affected
           (dbf-displayed-record-set-field 'set (cdr affected))))
-      (db-change-format "edit disk info"))
+      (db-change-format "edit"))
      (catalogue-unknown-disk
-      (db-change-format "disk registration form"))
+      (db-change-format "registration"))
      ((catalogue-empty-p)
       (db-change-format "empty"))
-     ((and (record-field record 'lended dbc-database)
-           (not (string= (record-field record 'lended dbc-database) "")))
-      (if (or (not (record-field record 'owner dbc-database))
-              (string= (record-field record 'owner dbc-database) ""))
-          (db-change-format "lended disk info")
-        (db-change-format "transit disk info")))
-     ((and (record-field record 'owner dbc-database)
-           (not (string= (record-field record 'owner dbc-database) "")))
-      (if (or (not (record-field record 'since dbc-database))
-              (string= (record-field record 'since dbc-database) ""))
-          (db-change-format "alien disk info")
-        (db-change-format "borrowed disk info")))
-     (t (db-change-format "native disk info")))))
+     ((catalogue-lended-p record)
+      (db-change-format
+       (if (catalogue-native-p record)
+           "lended"
+         "transit")))
+     ((not (catalogue-native-p record))
+      (db-change-format
+       (if (catalogue-released-p record)
+           "alien"
+         "borrowed")))
+     (t (db-change-format "native")))))
 
 (defun catalogue-initialize-record (record database)
   "Initialize newly created record."
@@ -388,7 +394,7 @@ correcting the `set' field. Return a number of added unit."
 ;; Main entry point:
 
 (defun catalogue-view ()
-  "Enter the disks catalogue."
+  "Enter the collection catalogue."
   (interactive)
   (setq catalogue-unknown-disk nil)
   (setq catalogue-editing-p nil)
@@ -405,7 +411,7 @@ correcting the `set' field. Return a number of added unit."
 
 (defun catalogue-next-record (&optional arg)
   "Go to the next catalogue record wrapping around the database if enabled.
-With prefix argument jumps to the next disk set."
+With prefix argument jumps to the next item set."
   (interactive "P")
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) (database-no-of-records dbc-database)))
@@ -433,7 +439,7 @@ With prefix argument jumps to the next disk set."
       (emacspeak-speak-current-window))))
 
 (defun catalogue-next-category ()
-  "Jump to the next disk category wrapping around the database if enabled."
+  "Jump to the next category wrapping around the database if enabled."
   (interactive)
   (let ((category (catalogue-this-record-field 'category))
         (found nil))
@@ -460,7 +466,7 @@ With prefix argument jumps to the next disk set."
 
 (defun catalogue-previous-record (&optional arg)
   "Go to the previous catalogue record wrapping around the database if enabled.
-With prefix argument jumps to the previous disk set."
+With prefix argument jumps to the previous item set."
   (interactive "P")
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) 1))
@@ -494,7 +500,7 @@ With prefix argument jumps to the previous disk set."
       (emacspeak-speak-current-window))))
 
 (defun catalogue-previous-category ()
-  "Jump to the previous disk category wrapping around the database if enabled."
+  "Jump to the previous category wrapping around the database if enabled."
   (interactive)
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)

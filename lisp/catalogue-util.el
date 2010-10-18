@@ -144,8 +144,8 @@ Matching is done by `string='. Returned list is in the reverse order."
 as the current one. Returned list is in the reverse order."
   (catalogue-list-by field (dbf-displayed-record-field field)))
 
-(defun catalogue-get-diskset ()
-  "Get list of record indexes for the diskset
+(defun catalogue-list-item-set ()
+  "Get list of record indexes for the item set
 which displayed record belongs to. Returned list is in the reverse order."
   (let ((name (dbf-displayed-record-field 'name))
         (category (dbf-displayed-record-field 'category)))

@@ -37,8 +37,8 @@
 ;;; Interactive commands:
 
 (defun catalogue-borrow (&optional entire)
-  "Register this disk as borrowed. When called with prefix argument
-in data display buffer the action is applied to the entire disk set.
+  "Register this item as borrowed. When called with prefix argument
+in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "P")
@@ -50,15 +50,15 @@ is applied to the marked items if any or to the current one."
            (catalogue-mapitems 'catalogue-borrow items)
          (call-interactively 'catalogue-borrow)))))
    (entire
-    (catalogue-mapitems 'catalogue-borrow (catalogue-get-diskset)))
+    (catalogue-mapitems 'catalogue-borrow (catalogue-list-item-set)))
    (t
     (if (catalogue-native-p)
         (if (interactive-p)
-            (error "This disk is native, so cannot be borrowed")
+            (error "This item is native, so cannot be borrowed")
           nil)
       (if (catalogue-borrowed-p)
           (if (interactive-p)
-              (error "This disk is already borrowed")
+              (error "This item is already borrowed")
             nil)
         (dbf-set-this-record-modified-p t)
         (dbf-displayed-record-set-field-and-redisplay
@@ -73,8 +73,8 @@ is applied to the marked items if any or to the current one."
             (emacspeak-auditory-icon 'save-object))))))))
 
 (defun catalogue-lend (lender &optional entire)
-  "Register this disk as lended. When called with prefix argument
-in data display buffer the action is applied to the entire disk set.
+  "Register this item as lended. When called with prefix argument
+in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "sLender: \nP")
@@ -94,7 +94,7 @@ is applied to the marked items if any or to the current one."
     (catalogue-mapitems
      (lambda ()
        (catalogue-lend lender))
-     (catalogue-get-diskset)))
+     (catalogue-list-item-set)))
    (t
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field
@@ -111,7 +111,7 @@ is applied to the marked items if any or to the current one."
 
 (defun catalogue-release (&optional entire)
   "Release borrowed or lended item. When called with prefix argument
-in data display buffer the action is applied to the entire disk set.
+in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "P")
@@ -123,7 +123,7 @@ is applied to the marked items if any or to the current one."
            (catalogue-mapitems 'catalogue-release items)
          (call-interactively 'catalogue-release)))))
    (entire
-    (catalogue-mapitems 'catalogue-release (catalogue-get-diskset)))
+    (catalogue-mapitems 'catalogue-release (catalogue-list-item-set)))
    (t
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field 'lended nil)
@@ -136,8 +136,8 @@ is applied to the marked items if any or to the current one."
         (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-give-up (new-owner &optional entire)
-  "Register this disk as alien. When called with prefix argument
-in data display buffer the action is applied to the entire disk set.
+  "Register this item as alien. When called with prefix argument
+in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "sNew owner: \nP")
@@ -157,7 +157,7 @@ is applied to the marked items if any or to the current one."
         (catalogue-mapitems
          (lambda ()
            (catalogue-give-up new-owner))
-         (catalogue-get-diskset))
+         (catalogue-list-item-set))
       (if (not (catalogue-native-p))
           (when (interactive-p)
             (error "This is not native item"))
@@ -174,7 +174,7 @@ is applied to the marked items if any or to the current one."
 
 (defun catalogue-unregister (&optional entire)
   "Forget this item forever. When called with prefix argument
-in data display buffer the action is applied to the entire disk set.
+in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
   (interactive "P")
@@ -197,8 +197,8 @@ is applied to the marked items if any or to the current one."
            (setq processed 1)))))
      (entire
       (when (or (not (interactive-p))
-                (y-or-n-p "Forget this entire disk set forever? "))
-        (setq items (catalogue-get-diskset)
+                (y-or-n-p "Forget this entire item set forever? "))
+        (setq items (catalogue-list-item-set)
               processed (length items))
         (catalogue-delete items)))
      (t

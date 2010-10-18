@@ -40,11 +40,11 @@
 (autoload 'catalogue-disk-identify "catalogue-media" "Try to identify currently inserted disk in catalogue." t)
 (autoload 'catalogue-reassign "catalogue-media" "Reassign current catalogue record to the inserted disk." t)
 
-(autoload 'catalogue-borrow "catalogue-commands" "Register disk in catalogue as borrowed." t)
-(autoload 'catalogue-lend "catalogue-commands" "Register disk in catalogue as lended." t)
+(autoload 'catalogue-borrow "catalogue-commands" "Register item in catalogue as borrowed." t)
+(autoload 'catalogue-lend "catalogue-commands" "Register item in catalogue as lended." t)
 (autoload 'catalogue-release "catalogue-commands" "Release borrowed or lended item." t)
-(autoload 'catalogue-give-up "catalogue-commands" "Register disk in catalogue as alien." t)
-(autoload 'catalogue-unregister "catalogue-commands" "Forget this disk forever." t)
+(autoload 'catalogue-give-up "catalogue-commands" "Register item in catalogue as alien." t)
+(autoload 'catalogue-unregister "catalogue-commands" "Forget this item forever." t)
 
 (autoload 'catalogue-summary "catalogue-summary" "Pop up summary window or synchronize it.")
 

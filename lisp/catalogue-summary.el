@@ -31,7 +31,7 @@
 ;;; Code:
 
 (defun catalogue-summary-mark-set (arg value)
-  "Set mark value on current record or on full disk set depending on arg.
+  "Set mark value on current record or on full item set depending on arg.
 Position is advanced to the next record."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
@@ -41,7 +41,7 @@ Position is advanced to the next record."
         (lambda (item)
           (db-select-record item)
           (db-mark-record value))
-        (nreverse (catalogue-get-diskset))))
+        (nreverse (catalogue-list-item-set))))
     (db-mark-record value))
   (condition-case nil
       (catalogue-next-record)
@@ -77,7 +77,7 @@ or synchronize summary window when called from there."
 ;; Marking:
 
 (defun catalogue-summary-mark (&optional arg)
-  "Mark current record or full disk set if called with prefix argument.
+  "Mark current record or full item set if called with prefix argument.
 Position is advanced to the next record."
   (interactive "P")
   (catalogue-summary-mark-set arg 1)
@@ -87,7 +87,7 @@ Position is advanced to the next record."
     (emacspeak-speak-line)))
 
 (defun catalogue-summary-unmark (&optional arg)
-  "Unmark current record or full disk set if called with prefix argument.
+  "Unmark current record or full item set if called with prefix argument.
 Position is advanced to the next record."
   (interactive "P")
   (catalogue-summary-mark-set arg 0)
@@ -104,7 +104,7 @@ Position is advanced to the next record."
 
 (defun catalogue-summary-next-record (&optional arg)
   "Go to the next record in summary buffer.
-with prefix argument go to the next disk set."
+with prefix argument go to the next item set."
   (interactive "P")
   (catalogue-next-record arg)
   (when (and (featurep 'emacspeak)
@@ -128,7 +128,7 @@ with prefix argument go to the next disk set."
 
 (defun catalogue-summary-previous-record (&optional arg)
   "Go to the previous record in summary buffer.
-With prefix argument go to the previous disk set."
+With prefix argument go to the previous item set."
   (interactive "P")
   (catalogue-previous-record arg)
   (when (and (featurep 'emacspeak)
