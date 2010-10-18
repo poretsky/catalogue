@@ -109,12 +109,14 @@
         (marked (catalogue-find-marked-records)))
     (db-exit t)
     (catalogue-view)
-    (mapcar
-     (lambda (item)
-       (db-jump-to-record item)
-       (db-mark-record 1))
-     marked)
-    (db-jump-to-record (min (database-no-of-records dbc-database) index)))
+    (db-jump-to-record (min (database-no-of-records dbc-database) index))
+    (when marked
+      (mapcar
+       (lambda (item)
+         (db-select-record item)
+         (db-mark-record 1))
+       marked)
+      (db-jump-to-record (min (database-no-of-records dbc-database) index))))
   (cond
    ((eq catalogue-restore-summary t)
     (setq catalogue-restore-summary nil)
