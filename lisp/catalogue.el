@@ -134,26 +134,28 @@ Usually there is no need to set this option here."
          ((string-match "^ru_RU" lang) "ru")
          (t "en")))))
 
+(defun catalogue-record-field-empty-p (field &optional record)
+  "Check if specified field in displayed or specified record is empty."
+  (let ((content (record-field (or record (dbf-displayed-record)) field dbc-database)))
+    (or (null content)
+        (string= "" content))))
+
 (defun catalogue-empty-p ()
   "Check if media catalogue database is empty."
   (and (= 1 (database-no-of-records dbc-database))
-       (or (null (dbf-displayed-record-field 'id))
-           (string= (dbf-displayed-record-field 'id) ""))))
+       (catalogue-record-field-empty-p 'id)))
 
 (defun catalogue-native-p (&optional item)
   "Check if displayed or specified item is native."
-  (or (null (record-field (or item (dbf-displayed-record)) 'owner dbc-database))
-      (string= "" (record-field (or item (dbf-displayed-record)) 'owner dbc-database))))
+  (catalogue-record-field-empty-p 'owner item))
 
 (defun catalogue-released-p (&optional item)
   "Check if displayed or specified item is neither lended nor borrowed."
-  (or (null (record-field (or item (dbf-displayed-record)) 'since dbc-database))
-      (string= "" (record-field (or item (dbf-displayed-record)) 'since dbc-database))))
+  (catalogue-record-field-empty-p 'since item))
 
 (defun catalogue-lended-p (&optional item)
   "Check if displayed or specified item is lended."
-  (and (record-field (or item (dbf-displayed-record)) 'lended dbc-database)
-       (not (string= "" (record-field (or item (dbf-displayed-record)) 'lended dbc-database)))))
+  (not (catalogue-record-field-empty-p 'lended item)))
 
 (defun catalogue-borrowed-p (&optional item)
   "Check if displayed or specified item is borrowed."
