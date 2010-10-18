@@ -171,15 +171,18 @@ Works in summary buffer as well."
     (dbf-in-summary-buffer
      (dbs-move-to-proper-record))))
 
-(defun catalogue-find-hole-in-disk-set (name)
-  "Return first free unit number in the disk set or nil if the set is full."
+(defun catalogue-find-hole-in-item-set (&optional item)
+  "Search for a gap in the item set if any for specified or displayed record
+and return first free unit number in the item set or nil if the set is full."
   (setq catalogue-current-item-set 0)
-  (let ((units nil))
+  (let ((units nil)
+        (name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database)))
     (maprecords
      (lambda (record)
-       (when (and (string= name
-                           (record-field record 'name dbc-database))
-                  (not (= maplinks-index dbc-index)))
+       (when (and (string= name (record-field record 'name dbc-database))
+                  (string= category (record-field record 'category dbc-database))
+                  (or item (not (= maplinks-index dbc-index))))
          (push (record-field record 'unit dbc-database) units)
          (setq catalogue-current-item-set
                (max (record-field record 'set dbc-database)
@@ -196,10 +199,12 @@ Works in summary buffer as well."
   "Add a new unit to the item set of current record
 correcting the `set' field. Return a number of added unit."
   (setq catalogue-current-item-set 0)
-  (let ((name (dbf-displayed-record-field 'name)))
+  (let ((name (dbf-displayed-record-field 'name))
+        (category (dbf-displayed-record-field 'category)))
     (maprecords
      (lambda (record)
        (and (string= name (record-field record 'name dbc-database))
+            (string= category (record-field record 'category dbc-database))
             (not (= maplinks-index dbc-index))
             (setq catalogue-current-item-set
                   (max (record-field record 'unit dbc-database)
@@ -211,13 +216,15 @@ correcting the `set' field. Return a number of added unit."
   catalogue-current-item-set)
 
 (defun catalogue-item-unique-p ()
-  "Check whether the current item is unique by name and unit number."
+  "Check whether the current item is unique by name, category and unit number."
   (let ((name (dbf-displayed-record-field 'name))
+        (category (dbf-displayed-record-field 'category))
         (unit (dbf-displayed-record-field 'unit))
         (flag t))
     (maprecords
      (lambda (record)
        (when (and (string= name (record-field record 'name dbc-database))
+                  (string= category (record-field record 'category dbc-database))
                   (= unit (record-field record 'unit dbc-database))
                   (not (= maplinks-index dbc-index)))
          (setq flag nil)
@@ -237,9 +244,7 @@ correcting the `set' field. Return a number of added unit."
 
 (defun catalogue-view-setup ()
   "Setup view mode."
-  (if catalogue-unknown-disk
-      (use-local-map catalogue-preview-map)
-    (use-local-map catalogue-view-map)))
+  (use-local-map (if catalogue-unknown-disk catalogue-preview-map catalogue-view-map)))
 
 (defun catalogue-edit-setup ()
   "Setup record editing mode."
@@ -294,7 +299,20 @@ correcting the `set' field. Return a number of added unit."
           (message "Empty name is not allowed")
           t)
       (dbf-displayed-record-set-field
-       'unit (or (catalogue-find-hole-in-disk-set new)
+       'unit (or (catalogue-find-hole-in-item-set)
+                 (catalogue-new-unit)))
+      (dbf-displayed-record-set-field 'set catalogue-current-item-set)
+      t))
+   ((eq field 'category)
+    (if (or (null new)
+            (string= new ""))
+        (progn
+          (dbf-displayed-record-set-field 'category old)
+          (ding)
+          (message "Empty category is not allowed")
+          t)
+      (dbf-displayed-record-set-field
+       'unit (or (catalogue-find-hole-in-item-set)
                  (catalogue-new-unit)))
       (dbf-displayed-record-set-field 'set catalogue-current-item-set)
       t))
@@ -318,11 +336,13 @@ correcting the `set' field. Return a number of added unit."
    ((eq field 'set)
     (if (integerp new)
         (let ((amount 0)
-              (name (dbf-displayed-record-field 'name)))
+              (name (dbf-displayed-record-field 'name))
+              (category (dbf-displayed-record-field 'category)))
           (maprecords
            (lambda (record)
-             (when (string= name (record-field 'name dbc-database))
-               (setq amount (max (record-field 'set dbc-database) amount))))
+             (and (string= name (record-field record 'name dbc-database))
+                  (string= category (record-field record 'category dbc-database))
+                  (setq amount (max (record-field record 'unit dbc-database) amount))))
            dbc-database)
           (if (>= new amount)
               nil
@@ -332,17 +352,29 @@ correcting the `set' field. Return a number of added unit."
             t))
       (dbf-displayed-record-set-field 'set old)
       (ding)
-      (message "Units amount in set must be integer")))))
+      (message "Units amount in set must be integer")
+      t))
+   ((eq field 'media)
+    (if (or (null new)
+            (string= new ""))
+        (progn
+          (dbf-displayed-record-set-field 'media old)
+          (ding)
+          (message "Empty media type is not allowed")
+          t)
+      nil))))
 
 (defun catalogue-accept-record (record)
   "Some catalogue specific actions concerning record commitment."
   (unless (string= catalogue-operational-buffer-name (buffer-name))
     (setq catalogue-unknown-disk nil)
     (let ((name (record-field record 'name dbc-database))
+          (category (record-field record 'category dbc-database))
           (amount (record-field record 'set dbc-database)))
       (maprecords
        (lambda (record)
          (when (and (string= name (record-field record 'name dbc-database))
+                    (string= category (record-field record 'category dbc-database))
                     (not (= maplinks-index dbc-index)))
            (let ((listed (assoc maplinks-index catalogue-affected-set)))
              (if listed

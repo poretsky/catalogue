@@ -146,7 +146,12 @@ as the current one. Returned list is in the reverse order."
 (defun catalogue-get-diskset ()
   "Get list of record indexes for the diskset
 which displayed record belongs to. Returned list is in the reverse order."
-  (catalogue-list-the-same 'name))
+  (let ((name (dbf-displayed-record-field 'name))
+        (category (dbf-displayed-record-field 'category)))
+    (catalogue-records-gather
+     (lambda (record)
+       (and (string= name (record-field record 'name dbc-database))
+            (string= category (record-field record 'category dbc-database)))))))
 
 (defun catalogue-find-marked-records ()
   "Get list of marked records indexes. Returned list is in the reverse order."

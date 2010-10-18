@@ -2,9 +2,10 @@ New \media disk.
 You can register it by pressing "e" or <ENTER> and filling out
 the index card or cancel registration by pressing "q".
 
-The first three fields in the index card (name, total amount
-of disks in set and disk number in set) are mandatory and
+The first three fields in the index card (name, category
+and unit number in set) together make up unique item identity.
+Total amount of units in set and media type also are mandatory and
 must be filled appropriately. The owner field should be filled
 only for alien disks. The other fields are not required,
-but recommended. The description should contain some additional
+but recommended. The description may contain some additional
 information about disk content, it's length is not restricted.

@@ -84,20 +84,21 @@ which should be used when guessing.")
 
 
 (defun catalogue-find-hole ()
-  "Find non-complete disk set and return draft of new record
+  "Find non-complete item set and return draft of new record
 or nil if no one is found."
   (let ((draft nil)
-        (skip ""))
+        (name "")
+        (category ""))
     (maprecords
      (lambda (record)
-       (let ((hole (and (> (record-field record 'set dbc-database) 1)
-                        (not (string= skip
-                                      (record-field record 'name
-                                                    dbc-database)))
-                        (catalogue-find-hole-in-disk-set
-                         (record-field record 'name dbc-database)))))
+       (let ((hole
+              (and (> (record-field record 'set dbc-database) 1)
+                   (not (string= name (record-field record 'name dbc-database)))
+                   (not (string= category (record-field record 'category dbc-database)))
+                   (catalogue-find-hole-in-item-set record))))
          (if (not hole)
-             (setq skip (record-field record 'name dbc-database))
+             (setq name (record-field record 'name dbc-database)
+                   category (record-field record 'category dbc-database))
            (setq draft (copy-record record))
            (record-set-field draft 'unit hole dbc-database)
            (maprecords-break))))
@@ -316,8 +317,7 @@ catalogue database display in any way."
                   (emacspeak-speak-current-window))))
             found)
         (if draft
-            (unless (setq found (catalogue-find-hole-in-disk-set
-                                 (record-field draft 'name dbc-database)))
+            (unless (setq found (catalogue-find-hole-in-item-set draft))
               (let ((hole (catalogue-find-hole)))
                 (when hole
                   (setq draft hole)
