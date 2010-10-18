@@ -530,6 +530,18 @@ With prefix argument jumps to the previous item set."
     (emacspeak-auditory-icon 'scroll)
     (dtk-speak (dbf-displayed-record-field 'category))))
 
+(defun catalogue-exit ()
+  "Exit catalogue and kill all it's buffers."
+  (interactive)
+  (mapcar
+   (lambda (buffer)
+     (with-current-buffer buffer
+       (db-exit t)))
+   (database-data-display-buffers dbc-database))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'close-object)))
+
 
 ;;; That's all.
 

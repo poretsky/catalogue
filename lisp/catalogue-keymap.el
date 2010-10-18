@@ -57,7 +57,7 @@
         ([C-home] . db-first-record)
         ([C-end] . db-last-record)
         ("S" . catalogue-summary)
-        ("q" . db-exit))
+        ("q" . catalogue-exit))
       do
       (define-key catalogue-view-map (car binding) (cdr binding)))
 
@@ -74,7 +74,7 @@
     ["Give up" catalogue-give-up (not (catalogue-empty-p))]
     ["Reassign" catalogue-reassign (not (catalogue-empty-p))]
     ["Unregister" catalogue-unregister (not (catalogue-empty-p))]
-    ["Quit" db-exit t]))
+    ["Quit" catalogue-exit t]))
 
 
 ;; Key bindings for new disk registration preview:
