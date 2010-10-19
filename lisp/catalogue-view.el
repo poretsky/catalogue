@@ -317,15 +317,7 @@ correcting the `set' field. Return a number of added unit."
       (ding)
       (message "Units amount in set must be integer")
       t))
-   ((eq field 'media)
-    (if (or (null new)
-            (string= new ""))
-        (progn
-          (dbf-displayed-record-set-field 'media old)
-          (ding)
-          (message "Empty media type is not allowed")
-          t)
-      nil))))
+   (t nil)))
 
 (defun catalogue-accept-record (record)
   "Some catalogue specific actions concerning record commitment."
