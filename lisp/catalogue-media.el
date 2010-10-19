@@ -27,6 +27,7 @@
 (require 'database)
 (require 'catalogue)
 (require 'catalogue-util)
+(require 'catalogue-strings)
 (require 'catalogue-keymap)
 
 
@@ -47,35 +48,6 @@
     (software-ms . ".*\\.exe"))
   "Association list of disk categories and corresponding file masks
 which should be used when guessing.")
-
-(defconst catalogue-category-names
-  '(("en"
-     (music . "Music")
-     (mp3-music . "Music (mp3)")
-     (mp3-audiobooks . "Audiobook (mp3)")
-     (video-dvd . "Films (DVD)")
-     (video-avi . "Films (avi)")
-     (video-ogm . "Films (ogm)")
-     (video-mpg . "Films (mpg)")
-     (software-deb . "Software (Debian Linux)")
-     (software-rpm . "Software (RH Linux)")
-     (software-fbsd . "Software (FreeBSD)")
-     (software-ms . "Software (MSDOS/Windows)")
-     (misc . "Miscellaneous"))
-    ("ru"
-     (music . "Музыка")
-     (mp3-music . "Музыка (mp3)")
-     (mp3-audiobook . "Аудиокниги (mp3)")
-     (video-dvd . "Фильмы (DVD)")
-     (video-avi . "Фильмы (avi)")
-     (video-ogm . "Фильмы (ogm)")
-     (video-mpg . "Фильмы (mpg)")
-     (software-deb . "Software (Debian Linux)")
-     (software-rpm . "Software (RH Linux)")
-     (software-fbsd . "Software (FreeBSD)")
-     (software-ms . "Software (MSDOS/Windows)")
-     (misc . "Разное")))
-  "Category names by language.")
 
 (defconst catalogue-mp3-contents-title
   '(("en" . "Albums:")
@@ -220,8 +192,13 @@ and return t if success."
 
 (defun catalogue-category-name (category)
   "Return name of given category."
-  (or (cdr (assoc category (cdr (assoc (catalogue-language) catalogue-category-names))))
+  (or (cdr (assq category (cdr (assoc (catalogue-language) catalogue-category-names-alist))))
       (symbol-name category)))
+
+(defun catalogue-media-type (media)
+  "Return name of given media type."
+  (or (cdr (assq media catalogue-media-types-alist))
+      (symbol-name media)))
 
 (defun catalogue-guess-disk-category ()
   "Try to guess category of the inserted disk."
@@ -267,9 +244,9 @@ catalogue database display in any way."
                                     catalogue-cd-dvd-mountpoint)))
            (media (if data
                       (if (string= "023bfd01" (match-string 0 id))
-                          "DVD"
-                        "Data CD")
-                    "Audio CD"))
+                          (catalogue-media-type 'dvd)
+                        (catalogue-media-type 'data-cd))
+                    (catalogue-media-type 'audio-cd)))
            (id (md5 (if data
                         (let ((coding-system-for-read 'raw-text))
                           (shell-command-to-string
