@@ -25,12 +25,70 @@
 
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-strings)
 (require 'catalogue-util)
 
 
 ;;; Code:
 
-;;; Interactive commands:
+;; Separate history for minibuffer inputs:
+
+(defvar catalogue-edit-name-history nil
+  "Minibuffer history for name input.")
+
+(defvar catalogue-edit-category-history nil
+  "Minibuffer history for input category.")
+
+(defvar catalogue-edit-media-type-history nil
+  "Minibuffer history for input media type.")
+
+(defvar catalogue-edit-owner-history nil
+  "Minibuffer history for input owner.")
+
+(defvar catalogue-edit-place-history nil
+  "Minibuffer history for input place.")
+
+
+;; Utility functions:
+
+(defun catalogue-edit-string-input (field history)
+  "Input specified field content using history."
+  (dbf-set-this-record-modified-p t)
+  (dbf-displayed-record-set-field-and-redisplay
+   field
+   (read-string
+    "Input new value or try history: "
+    nil history
+    (dbf-displayed-record-field field)
+    t)))
+
+(defun catalogue-edit-completing-input (field collection history)
+  "Input specified field content using history and completions."
+  (dbf-set-this-record-modified-p t)
+  (dbf-displayed-record-set-field-and-redisplay
+   field
+   (completing-read
+    "Input with completions or try history: "
+    collection nil nil nil history
+    (dbf-displayed-record-field field)
+    t)))
+
+(defun catalogue-known-field-values (field predefined)
+  "Get list of known values for specified field.
+The second argument provides alist of predefined values."
+  (let ((collection (mapcar 'cdr predefined)))
+    (maprecords
+     (lambda (record)
+       (unless (= maplinks-index dbc-index)
+         (let ((item (record-field record field dbc-database)))
+           (and item
+                (not (string= "" item))
+                (add-to-list 'collection item)))))
+     dbc-database)
+    collection))
+
+
+;; Interactive commands:
 
 (defun catalogue-edit ()
   "Edit current catalogue record."
@@ -159,11 +217,38 @@
     (signal 'beginning-of-buffer nil)))
 
 (defun catalogue-newline ()
-  "Go to the next field or insert a new line in the multiline description."
+  "Input field content with history and completions if available
+or insert a new line in the multiline description."
   (interactive)
-  (if (eq (dbf-this-field-name) 'description)
-      (call-interactively 'db-newline)
-    (call-interactively 'catalogue-next-line-or-field)))
+  (let ((field (dbf-this-field-name)))
+    (cond
+     ((eq field 'name)
+      (catalogue-edit-string-input 'name catalogue-edit-name-history))
+     ((eq field 'category)
+      (catalogue-edit-completing-input
+       'category
+       (catalogue-known-field-values
+        'category
+        (cdr (assoc (catalogue-language)
+                    catalogue-category-names-alist)))
+       catalogue-edit-category-history))
+     ((eq field 'media)
+      (catalogue-edit-completing-input
+       'media
+       (catalogue-known-field-values 'media catalogue-media-types-alist)
+       catalogue-edit-media-type-history))
+     ((eq field 'owner)
+      (catalogue-edit-string-input 'owner catalogue-edit-owner-history))
+     ((eq field 'place)
+      (catalogue-edit-string-input 'place catalogue-edit-place-history))
+     ((eq field 'description)
+      (call-interactively 'db-newline))
+     (t
+      (error "Function unavailable in this field"))))
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'select-object)
+    (emacspeak-speak-line)))
 
 
 ;;; That's all.
