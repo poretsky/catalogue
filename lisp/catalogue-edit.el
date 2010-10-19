@@ -23,15 +23,17 @@
 
 ;;; Requirements:
 
+(require 'easymenu)
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-view)
 (require 'catalogue-strings)
 (require 'catalogue-util)
 
 
 ;;; Code:
 
-;; Separate history for minibuffer inputs:
+;; Per field history for minibuffer inputs:
 
 (defvar catalogue-edit-name-history nil
   "Minibuffer history for name input.")
@@ -249,6 +251,61 @@ or insert a new line in the multiline description."
              (interactive-p))
     (emacspeak-auditory-icon 'select-object)
     (emacspeak-speak-line)))
+
+
+;; Key bindings for catalogue editing:
+
+(defvar catalogue-edit-map (make-keymap)
+  "Catalogue edit mode keymap.")
+(loop for binding in
+      '(("\C-c\C-c" . catalogue-commit)
+        ("\C-cq" . catalogue-cancel)
+        ("\C-xU" . db-revert-field)
+        ("\M-s" . db-search-field)
+        ([next] . catalogue-next-record)
+        ([prior] . catalogue-previous-record)
+        ("\C-n" . catalogue-next-line-or-field)
+        ([down] . catalogue-next-line-or-field)
+        ("\C-p" . catalogue-previous-line-or-field)
+        ([up] . catalogue-previous-line-or-field)
+        ("\C-f" . db-forward-char)
+        ([right] . db-forward-char)
+        ("\C-b" . db-backward-char)
+        ([left] . db-backward-char)
+        ("\M-f" . db-forward-word)
+        ("\M-b" . db-backward-word)
+        ("\C-a" . db-beginning-of-line-or-field)
+        ([home] . db-beginning-of-line-or-field)
+        ([end] . db-end-of-line-or-field)
+        ("\r" . catalogue-newline)
+        ("\n" . catalogue-newline)
+        ("\C-o" . db-open-line)
+        ("\C-d" . db-delete-char)
+        ("\177" . db-backward-delete-char)
+        ("\M-d" . db-kill-word)
+        ("\M-\177" . db-kill-word)
+        ("\C-k" . db-kill-line)
+        ("\M-k" . db-kill-to-end)
+        ("\C-w" . db-kill-region)
+        ("\M-w" . db-copy-region-as-kill)
+        ("\C-s" . db-isearch-forward)
+        ("\C-r" . db-isearch-backward)
+        ("\M-?" . db-field-help))
+      do
+      (define-key catalogue-edit-map (car binding) (cdr binding)))
+
+
+;; Catalogue edit menu:
+
+(easy-menu-define nil catalogue-edit-map
+  "Media catalogue edit menu"
+  '("Catalogue"
+    ["Commit" catalogue-commit t]
+    ["Cancel" catalogue-cancel t]
+    ["Revert record" db-revert-record t]
+    ["Revert field" db-revert-field t]
+    ["Search by field" db-search-field t]
+    ["Help on field" db-field-help t]))
 
 
 ;;; That's all.

@@ -25,7 +25,7 @@
 
 (eval-when-compile (require 'cl))
 (require 'database)
-(require 'catalogue)
+(require 'catalogue-view)
 (require 'catalogue-util)
 
 

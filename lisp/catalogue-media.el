@@ -24,11 +24,12 @@
 ;;; Requirements:
 
 (eval-when-compile (require 'cl))
+(require 'easymenu)
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-view)
 (require 'catalogue-util)
 (require 'catalogue-strings)
-(require 'catalogue-keymap)
 
 
 ;;; Code:
@@ -372,7 +373,7 @@ catalogue database display in any way."
     (error "Not in viewing mode"))
   (unless catalogue-unknown-disk
     (error "Not a new disk"))
-  (catalogue-delete-record)
+  (catalogue-delete)
   (db-save-database)
   (use-local-map catalogue-view-map)
   (cond
@@ -387,6 +388,28 @@ catalogue database display in any way."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
+
+
+;; Key bindings for new disk registration preview:
+
+(defvar catalogue-preview-map (make-keymap)
+  "New disk registration preview mode keymap.")
+(suppress-keymap catalogue-preview-map t)
+(loop for binding in
+      '(("e" . catalogue-edit)
+        ([return] . catalogue-edit)
+        ("q" . catalogue-cancel-registration))
+      do
+      (define-key catalogue-preview-map (car binding) (cdr binding)))
+
+
+;; New disk registration preview menu:
+
+(easy-menu-define nil catalogue-preview-map
+  "New disk registration preview menu"
+  '("Catalogue"
+    ["Edit" catalogue-edit t]
+    ["Cancel" catalogue-cancel-registration t]))
 
 
 ;;; That's all.

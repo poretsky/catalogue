@@ -23,8 +23,9 @@
 
 ;;; Requirements:
 
+(require 'easymenu)
 (require 'database)
-(require 'catalogue)
+(require 'catalogue-view)
 (require 'catalogue-util)
 
 
@@ -189,6 +190,47 @@ With prefix argument go to the previous item set."
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
     (emacspeak-speak-line)))
+
+
+;; Key bindings for summary view:
+
+(defvar catalogue-summary-map (make-keymap)
+  "catalogue summary mode keymap.")
+(suppress-keymap catalogue-summary-map t)
+(loop for binding in
+      '(([down] . catalogue-summary-next-record)
+        ("n" . catalogue-summary-next-record)
+        ([up] . catalogue-summary-previous-record)
+        ("p" . catalogue-summary-previous-record)
+        ([C-down] . catalogue-summary-next-mark)
+        ("\C-n" . catalogue-summary-next-mark)
+        ([C-up] . catalogue-summary-previous-mark)
+        ("\C-p" . catalogue-summary-previous-mark)
+        ([next] . catalogue-summary-scroll-up)
+        ([prior] . catalogue-summary-scroll-down)
+        ([C-home] . catalogue-summary-first-record)
+        ([C-end] . catalogue-summary-last-record)
+        ("\C-s" . db-isearch-forward)
+        ("\C-r" . db-isearch-backward)
+        ("s" . catalogue-search)
+        ("g" . catalogue-summary)
+        ([return] . catalogue-edit)
+        ("e" . catalogue-edit)
+        ("/" . catalogue-disk-identify)
+        ("I" . catalogue-disk-identify)
+        ("B" . catalogue-borrow)
+        ("L" . catalogue-lend)
+        ("R" . catalogue-release)
+        ("G" . catalogue-give-up)
+        ("\C-cr" . catalogue-reassign)
+        ("m" . catalogue-summary-mark)
+        ("u" . catalogue-summary-unmark)
+        ("\M-u" . db-unmark-all)
+        ("\C-d" . catalogue-unregister)
+        ("?" . describe-mode)
+        ("q" . dbs-exit))
+      do
+      (define-key catalogue-summary-map (car binding) (cdr binding)))
 
 
 ;;; That's all.

@@ -65,7 +65,7 @@ data display buffer creating it if necessary."
      catalogue-operational-buffer)))
 
 (defun catalogue-delete (&optional items)
-  "Delete record or clear it if it is the only one.
+  "Delete current record or clear it if it is the only one.
 If optional argument is specified it is treated as a list of record indexes
 to be deleted in the descending order. In this case all the work
 will be done in the operational buffer that will then be properly
