@@ -84,11 +84,15 @@
          ((string-match "^ru_RU" lang) "ru")
          (t "en")))))
 
+(defun catalogue-string-empty-p (str)
+  "Return `t' if specified string is null or empty."
+  (or (null str)
+      (string= "" str)))
+
 (defun catalogue-record-field-empty-p (field &optional record)
   "Check if specified field in displayed or specified record is empty."
-  (let ((content (record-field (or record (dbf-displayed-record)) field dbc-database)))
-    (or (null content)
-        (string= "" content))))
+  (catalogue-string-empty-p
+   (record-field (or record (dbf-displayed-record)) field dbc-database)))
 
 (defun catalogue-empty-p ()
   "Check if media catalogue database is empty."
@@ -192,6 +196,15 @@ correcting the `set' field. Return a number of added unit."
      dbc-database)
     flag))
 
+(defun catalogue-check-entry ()
+  "Check current entry correctness and issue corresponding error if needed."
+  (when (catalogue-record-field-empty-p 'name)
+    (error "Empty name is not allowed, fix it first or discard changes"))
+  (when (catalogue-record-field-empty-p 'category)
+    (error "Empty category is not allowed, fix it first or discard changes"))
+  (unless (catalogue-item-unique-p)
+    (error "Duplicate entry, fix it first or discard changes")))
+
 
 ;; EDB hooks:
 
@@ -254,8 +267,7 @@ correcting the `set' field. Return a number of added unit."
   "Validate mandatory fields change. Intended for field change hook."
   (cond
    ((eq field 'name)
-    (if (or (null new)
-            (string= new ""))
+    (if (catalogue-string-empty-p new)
         (progn
           (dbf-displayed-record-set-field 'name old)
           (ding)
@@ -267,8 +279,7 @@ correcting the `set' field. Return a number of added unit."
       (dbf-displayed-record-set-field 'set catalogue-current-item-set)
       t))
    ((eq field 'category)
-    (if (or (null new)
-            (string= new ""))
+    (if (catalogue-string-empty-p new)
         (progn
           (dbf-displayed-record-set-field 'category old)
           (ding)
@@ -283,7 +294,10 @@ correcting the `set' field. Return a number of added unit."
     (if (integerp new)
         (if (> new 0)
             (if (catalogue-item-unique-p)
-                nil
+                (if (<= new (dbf-displayed-record-field 'set))
+                    nil
+                  (dbf-displayed-record-set-field 'set new)
+                  t)
               (dbf-displayed-record-set-field 'unit old)
               (ding)
               (message "Duplicate item")
@@ -298,7 +312,7 @@ correcting the `set' field. Return a number of added unit."
       t))
    ((eq field 'set)
     (if (integerp new)
-        (let ((amount 0)
+        (let ((amount (dbf-displayed-record-field 'unit))
               (name (dbf-displayed-record-field 'name))
               (category (dbf-displayed-record-field 'category)))
           (maprecords
@@ -362,6 +376,8 @@ correcting the `set' field. Return a number of added unit."
   "Go to the next catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the next item set."
   (interactive "P")
+  (when catalogue-editing-p
+    (catalogue-check-entry))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) (database-no-of-records dbc-database)))
       (signal 'end-of-catalogue nil)
@@ -390,6 +406,8 @@ With prefix argument jumps to the next item set."
 (defun catalogue-next-category ()
   "Jump to the next category wrapping around the database if enabled."
   (interactive)
+  (when catalogue-editing-p
+    (catalogue-check-entry))
   (let ((category (catalogue-this-record-field 'category))
         (found nil))
     (maprecords
@@ -417,6 +435,8 @@ With prefix argument jumps to the next item set."
   "Go to the previous catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the previous item set."
   (interactive "P")
+  (when catalogue-editing-p
+    (catalogue-check-entry))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) 1))
       (signal 'beginning-of-catalogue nil)
@@ -451,6 +471,8 @@ With prefix argument jumps to the previous item set."
 (defun catalogue-previous-category ()
   "Jump to the previous category wrapping around the database if enabled."
   (interactive)
+  (when catalogue-editing-p
+    (catalogue-check-entry))
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)
@@ -487,7 +509,8 @@ With prefix argument jumps to the previous item set."
    (database-data-display-buffers dbc-database))
   (when (and (featurep 'emacspeak)
              (interactive-p))
-    (emacspeak-auditory-icon 'close-object)))
+    (emacspeak-auditory-icon 'close-object)
+    (emacspeak-speak-mode-line)))
 
 
 ;; Autoloaded functions from other modules:

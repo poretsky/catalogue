@@ -53,26 +53,28 @@
 
 ;; Utility functions:
 
-(defun catalogue-edit-string-input (field history)
-  "Input specified field content using history."
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field-and-redisplay
-   field
+(defun catalogue-replace-this-field-value (str)
+  "Replace current field by provided string."
+  (goto-char (dbf-this-field-beginning-pos))
+  (delete-region (dbf-this-field-beginning-pos) (dbf-this-field-end-pos))
+  (insert str))
+
+(defun catalogue-edit-string-input (history)
+  "Input current field content using history."
+  (catalogue-replace-this-field-value
    (read-string
     "Input new value or try history: "
     nil history
-    (dbf-displayed-record-field field)
+    (dbf-displayed-record-field (dbf-this-field-name))
     t)))
 
-(defun catalogue-edit-completing-input (field collection history)
-  "Input specified field content using history and completions."
-  (dbf-set-this-record-modified-p t)
-  (dbf-displayed-record-set-field-and-redisplay
-   field
+(defun catalogue-edit-completing-input (collection history)
+  "Input current field content using history and completions."
+  (catalogue-replace-this-field-value
    (completing-read
     "Input with completions or try history: "
     collection nil nil nil history
-    (dbf-displayed-record-field field)
+    (dbf-displayed-record-field (dbf-this-field-name))
     t)))
 
 (defun catalogue-known-field-values (field predefined)
@@ -83,9 +85,8 @@ The second argument provides alist of predefined values."
      (lambda (record)
        (unless (= maplinks-index dbc-index)
          (let ((item (record-field record field dbc-database)))
-           (and item
-                (not (string= "" item))
-                (add-to-list 'collection item)))))
+           (unless (catalogue-string-empty-p item)
+             (add-to-list 'collection item)))))
      dbc-database)
     collection))
 
@@ -122,6 +123,7 @@ The second argument provides alist of predefined values."
     (error "Not in data display buffer"))
   (unless (eq dbf-minor-mode 'edit)
     (error "Not in editing mode"))
+  (catalogue-check-entry)
   (db-commit-record)
   (setq catalogue-editing-p nil)
   (db-view-mode)
@@ -225,24 +227,22 @@ or insert a new line in the multiline description."
   (let ((field (dbf-this-field-name)))
     (cond
      ((eq field 'name)
-      (catalogue-edit-string-input 'name catalogue-edit-name-history))
+      (catalogue-edit-string-input 'catalogue-edit-name-history))
      ((eq field 'category)
       (catalogue-edit-completing-input
-       'category
        (catalogue-known-field-values
         'category
         (cdr (assoc (catalogue-language)
                     catalogue-category-names-alist)))
-       catalogue-edit-category-history))
+       'catalogue-edit-category-history))
      ((eq field 'media)
       (catalogue-edit-completing-input
-       'media
        (catalogue-known-field-values 'media catalogue-media-types-alist)
-       catalogue-edit-media-type-history))
+       'catalogue-edit-media-type-history))
      ((eq field 'owner)
-      (catalogue-edit-string-input 'owner catalogue-edit-owner-history))
+      (catalogue-edit-string-input 'catalogue-edit-owner-history))
      ((eq field 'place)
-      (catalogue-edit-string-input 'place catalogue-edit-place-history))
+      (catalogue-edit-string-input 'catalogue-edit-place-history))
      ((eq field 'description)
       (call-interactively 'db-newline))
      (t
