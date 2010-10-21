@@ -105,8 +105,8 @@ The second argument provides alist of predefined values."
       (progn
         (dbs-exit)
         (setq catalogue-restore-summary t))
-    (setq catalogue-restore-summary (dbf-summary-buffer))
-    (dbf-kill-summary))
+    (setq catalogue-restore-summary (dbf-summary-buffer)))
+  (dbf-kill-summary)
   (setq catalogue-affected-set nil)
   (setq catalogue-editing-p t)
   (db-next-record 0)
@@ -169,7 +169,11 @@ The second argument provides alist of predefined values."
   (dbc-set-database-modified-p nil)
   (let ((index (catalogue-index))
         (marked (catalogue-find-marked-records)))
-    (db-exit t)
+    (mapcar
+     (lambda (buffer)
+       (with-current-buffer buffer
+         (db-kill-buffers)))
+     (database-data-display-buffers dbc-database))
     (catalogue-view)
     (db-jump-to-record (min (database-no-of-records dbc-database) index))
     (when marked

@@ -308,8 +308,8 @@ catalogue database display in any way."
               (progn
                 (dbs-exit)
                 (setq catalogue-restore-summary t))
-            (setq catalogue-restore-summary (dbf-summary-buffer))
-            (dbf-kill-summary)))
+            (setq catalogue-restore-summary (dbf-summary-buffer)))
+          (dbf-kill-summary))
         (db-in-data-display-buffer
          (if (not (catalogue-empty-p))
              (db-add-record)
