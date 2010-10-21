@@ -159,31 +159,40 @@ and return first free unit number in the item set or nil if the set is full."
              nil
            i)))))
 
-(defun catalogue-new-unit ()
-  "Add a new unit to the item set of current record
-correcting the `set' field. Return a number of added unit."
-  (setq catalogue-current-item-set 0)
-  (let ((name (dbf-displayed-record-field 'name))
-        (category (dbf-displayed-record-field 'category)))
+(defun catalogue-count-set-amount (&optional item)
+  "Return minimal correct value for the set amount
+for specified or current item. If item is `nil' or not specified
+then the currently displayed one is used to identify the set,
+but it's unit number is not taken in account."
+  (let ((amount
+         (if item
+             (record-field item 'unit dbc-database)
+           0))
+        (name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database)))
     (maprecords
      (lambda (record)
        (and (string= name (record-field record 'name dbc-database))
             (string= category (record-field record 'category dbc-database))
             (not (= maplinks-index dbc-index))
-            (setq catalogue-current-item-set
-                  (max (record-field record 'unit dbc-database)
-                       catalogue-current-item-set))))
+            (setq amount (max (record-field record 'unit dbc-database) amount))))
      dbc-database)
-    (dbf-displayed-record-set-field
-     'set
-     (setq catalogue-current-item-set (1+ catalogue-current-item-set))))
+    amount))
+
+(defun catalogue-new-unit ()
+  "Add a new unit to the item set of current record
+correcting the `set' field. Return a number of added unit."
+  (dbf-displayed-record-set-field
+   'set
+   (setq catalogue-current-item-set (1+ (catalogue-count-set-amount))))
   catalogue-current-item-set)
 
-(defun catalogue-item-unique-p ()
-  "Check whether the current item is unique by name, category and unit number."
-  (let ((name (dbf-displayed-record-field 'name))
-        (category (dbf-displayed-record-field 'category))
-        (unit (dbf-displayed-record-field 'unit))
+(defun catalogue-item-unique-p (&optional item)
+  "Check whether the current item is unique by name, category and unit number.
+If item is specified explicitly it is checked as it was the current one."
+  (let ((name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database))
+        (unit (record-field (or item (dbf-displayed-record)) 'unit dbc-database))
         (flag t))
     (maprecords
      (lambda (record)
@@ -197,13 +206,35 @@ correcting the `set' field. Return a number of added unit."
     flag))
 
 (defun catalogue-check-entry ()
-  "Check current entry correctness and issue corresponding error if needed."
-  (when (catalogue-record-field-empty-p 'name)
-    (error "Empty name is not allowed, fix it first or discard changes"))
-  (when (catalogue-record-field-empty-p 'category)
-    (error "Empty category is not allowed, fix it first or discard changes"))
-  (unless (catalogue-item-unique-p)
-    (error "Duplicate entry, fix it first or discard changes")))
+  "Check currently editing  entry correctness
+and issue corresponding error if needed."
+  (let ((item (copy-record (dbf-displayed-record)))
+        (field  (dbf-this-field-name))
+        (suggest ", fix it first or discard changes"))
+    (cond
+     ((or (eq field 'name) (eq field 'category))
+      (record-set-field
+       item field
+       (buffer-substring (dbf-this-field-beginning-pos) (dbf-this-field-end-pos))
+       dbc-database))
+     ((or (eq field 'unit) (eq field 'set))
+      (record-set-field
+       item field
+       (string-to-number
+        (buffer-substring (dbf-this-field-beginning-pos) (dbf-this-field-end-pos)))
+       dbc-database))
+     (t nil))
+    (when (catalogue-record-field-empty-p 'name item)
+      (error "Empty name is not allowed%s" suggest))
+    (when (catalogue-record-field-empty-p 'category item)
+      (error "Empty category is not allowed%s" suggest))
+    (unless (catalogue-item-unique-p item)
+      (error "Duplicate entry%s" suggest))
+    (when (< (record-field item 'unit dbc-database) 1)
+      (error "Unit number must be > 0%s" suggest))
+    (let ((amount (catalogue-count-set-amount item)))
+      (when (< (record-field item 'set dbc-database) amount)
+        (error "This set consists at least of %d units%s" amount suggest)))))
 
 
 ;; EDB hooks:
@@ -291,46 +322,28 @@ correcting the `set' field. Return a number of added unit."
       (dbf-displayed-record-set-field 'set catalogue-current-item-set)
       t))
    ((eq field 'unit)
-    (if (integerp new)
-        (if (> new 0)
-            (if (catalogue-item-unique-p)
-                (if (<= new (dbf-displayed-record-field 'set))
-                    nil
-                  (dbf-displayed-record-set-field 'set new)
-                  t)
-              (dbf-displayed-record-set-field 'unit old)
-              (ding)
-              (message "Duplicate item")
+    (if (> new 0)
+        (if (catalogue-item-unique-p)
+            (if (<= new (dbf-displayed-record-field 'set))
+                nil
+              (dbf-displayed-record-set-field 'set new)
               t)
           (dbf-displayed-record-set-field 'unit old)
           (ding)
-          (message "Unit number must be > 0")
+          (message "Duplicate item")
           t)
       (dbf-displayed-record-set-field 'unit old)
       (ding)
-      (message "Unit number must be integer")
+      (message "Unit number must be > 0")
       t))
    ((eq field 'set)
-    (if (integerp new)
-        (let ((amount (dbf-displayed-record-field 'unit))
-              (name (dbf-displayed-record-field 'name))
-              (category (dbf-displayed-record-field 'category)))
-          (maprecords
-           (lambda (record)
-             (and (string= name (record-field record 'name dbc-database))
-                  (string= category (record-field record 'category dbc-database))
-                  (setq amount (max (record-field record 'unit dbc-database) amount))))
-           dbc-database)
-          (if (>= new amount)
-              nil
-            (dbf-displayed-record-set-field 'set amount)
-            (ding)
-            (message "This set can not be further shrinked")
-            t))
-      (dbf-displayed-record-set-field 'set old)
-      (ding)
-      (message "Units amount in set must be integer")
-      t))
+    (let ((amount (catalogue-count-set-amount (dbf-displayed-record))))
+      (if (>= new amount)
+          nil
+        (dbf-displayed-record-set-field 'set amount)
+        (ding)
+        (message "This set can not be further shrinked")
+        t)))
    (t nil)))
 
 (defun catalogue-accept-record (record)
@@ -377,7 +390,9 @@ correcting the `set' field. Return a number of added unit."
 With prefix argument jumps to the next item set."
   (interactive "P")
   (when catalogue-editing-p
-    (catalogue-check-entry))
+    (db-in-data-display-buffer
+     (when (eq dbf-minor-mode 'edit)
+       (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) (database-no-of-records dbc-database)))
       (signal 'end-of-catalogue nil)
@@ -407,7 +422,9 @@ With prefix argument jumps to the next item set."
   "Jump to the next category wrapping around the database if enabled."
   (interactive)
   (when catalogue-editing-p
-    (catalogue-check-entry))
+    (db-in-data-display-buffer
+     (when (eq dbf-minor-mode 'edit)
+       (catalogue-check-entry))))
   (let ((category (catalogue-this-record-field 'category))
         (found nil))
     (maprecords
@@ -436,7 +453,9 @@ With prefix argument jumps to the next item set."
 With prefix argument jumps to the previous item set."
   (interactive "P")
   (when catalogue-editing-p
-    (catalogue-check-entry))
+    (db-in-data-display-buffer
+     (when (eq dbf-minor-mode 'edit)
+       (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) 1))
       (signal 'beginning-of-catalogue nil)
@@ -472,7 +491,9 @@ With prefix argument jumps to the previous item set."
   "Jump to the previous category wrapping around the database if enabled."
   (interactive)
   (when catalogue-editing-p
-    (catalogue-check-entry))
+    (db-in-data-display-buffer
+     (when (eq dbf-minor-mode 'edit)
+       (catalogue-check-entry))))
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)
