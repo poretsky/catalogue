@@ -32,8 +32,11 @@
 ;;; Code:
 
 (defun catalogue-summary-mark-set (arg value)
-  "Set mark value on current record or on full item set depending on arg.
-Position is advanced to the next record."
+  "Set mark value on current record or on full item set
+depending on arg. If arg is not `nil' and not `set' it is treated
+as name of field by which record should be selected.
+At the end of operation position is advanced to the next
+available record after the last processed one."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
   (if arg
@@ -42,7 +45,10 @@ Position is advanced to the next record."
         (lambda (item)
           (db-select-record item)
           (db-mark-record value))
-        (nreverse (catalogue-list-item-set))))
+        (nreverse
+         (if (eq arg 'set)
+             (catalogue-list-item-set)
+           (catalogue-list-the-same arg)))))
     (db-mark-record value))
   (condition-case nil
       (catalogue-next-record)
@@ -81,7 +87,7 @@ or synchronize summary window when called from there."
   "Mark current record or full item set if called with prefix argument.
 Position is advanced to the next record."
   (interactive "P")
-  (catalogue-summary-mark-set arg 1)
+  (catalogue-summary-mark-set (and arg 'set) 1)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'mark-object)
@@ -91,7 +97,27 @@ Position is advanced to the next record."
   "Unmark current record or full item set if called with prefix argument.
 Position is advanced to the next record."
   (interactive "P")
-  (catalogue-summary-mark-set arg 0)
+  (catalogue-summary-mark-set (and arg 'set) 0)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'deselect-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-mark-category ()
+  "Mark all records of category the current one belongs to.
+Position is advanced to the next record."
+  (interactive)
+  (catalogue-summary-mark-set 'category 1)
+  (when (and (featurep 'emacspeak)
+             (interactive-p))
+    (emacspeak-auditory-icon 'mark-object)
+    (emacspeak-speak-line)))
+
+(defun catalogue-summary-unmark-category ()
+  "Unmark all records of category the current one belongs to.
+Position is advanced to the next record."
+  (interactive)
+  (catalogue-summary-mark-set 'category 0)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'deselect-object)
@@ -225,6 +251,8 @@ With prefix argument go to the previous item set."
         ("\C-cr" . catalogue-reassign)
         ("m" . catalogue-summary-mark)
         ("u" . catalogue-summary-unmark)
+        ("\C-cm" . catalogue-summary-mark-category)
+        ("\C-cu" . catalogue-summary-unmark-category)
         ("\M-u" . db-unmark-all)
         ("\C-d" . catalogue-unregister)
         ("?" . describe-mode)
