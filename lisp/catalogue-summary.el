@@ -39,17 +39,18 @@ At the end of operation position is advanced to the next
 available record after the last processed one."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
-  (if arg
-      (dbs-in-data-display-buffer
-       (mapcar
-        (lambda (item)
-          (db-select-record item)
-          (db-mark-record value))
-        (nreverse
-         (if (eq arg 'set)
-             (catalogue-list-item-set)
-           (catalogue-list-the-same arg)))))
-    (db-mark-record value))
+  (if (null arg)
+      (db-mark-record value)
+    (dbs-in-data-display-buffer
+     (mapcar
+      (lambda (item)
+        (db-select-record item)
+        (db-mark-record value))
+      (nreverse
+       (if (eq arg 'set)
+           (catalogue-list-item-set)
+         (catalogue-list-the-same arg)))))
+    (dbs-move-to-proper-record))
   (condition-case nil
       (catalogue-next-record)
     (end-of-catalogue nil)))
