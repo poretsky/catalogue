@@ -55,6 +55,44 @@ available record after the last processed one."
       (catalogue-next-record)
     (end-of-catalogue nil)))
 
+(defun catalogue-summary-mark-filter (predicate)
+  "Filter marked records according to specified predicate.
+If some records are marked before calling this function
+then those of them unsatisfying the predicate will be unmarked.
+Otherwise all records satisfying predicate will be marked.
+If some hits are found pointer is moved to the first one
+and `t' is returned. Otherwise pointer remains on it's original
+position and `nil' is returned."
+  (unless (db-summary-buffer-p)
+    (error "Not in summary buffer"))
+  (dbs-in-data-display-buffer
+   (let ((items (catalogue-find-marked-records))
+         (hits 0)
+         (first-hit))
+     (when items
+       (db-unmark-all))
+     (maprecords
+      (lambda (record)
+        (when (and (funcall predicate record)
+                   (or (null items)
+                       (member maplinks-index items)))
+          (db-select-record maplinks-index)
+          (db-mark-record 1)
+          (when (zerop hits)
+            (setq first-hit maplinks-index))
+          (setq hits (1+ hits))))
+      dbc-database)
+     (message "%s hit%s found"
+              (if (zerop hits)
+                  "No"
+                (db-jump-to-record first-hit)
+                (dbf-fill-summary-buffer-and-move-to-proper-record)
+                (format "%d" hits))
+              (if (= 1 hits)
+                  ""
+                "s"))
+     (not (zerop hits)))))
+
 
 ;;; Interactive commands:
 
@@ -123,6 +161,52 @@ Position is advanced to the next record."
              (interactive-p))
     (emacspeak-auditory-icon 'deselect-object)
     (emacspeak-speak-line)))
+
+
+;; Filtering:
+
+(defun catalogue-summary-filter-alien ()
+  "Filter alien items."
+  (interactive)
+  (let ((found
+         (catalogue-summary-mark-filter
+          (lambda (record)
+            (not (catalogue-native-p record))))))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
+      (when found
+        (emacspeak-speak-line)))))
+
+(defun catalogue-summary-filter-native ()
+  "Filter native items."
+  (interactive)
+  (let ((found (catalogue-summary-mark-filter 'catalogue-native-p)))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
+      (when found
+        (emacspeak-speak-line)))))
+
+(defun catalogue-summary-filter-borrowed ()
+  "Filter borrowed items."
+  (interactive)
+  (let ((found (catalogue-summary-mark-filter 'catalogue-borrowed-p)))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
+      (when found
+        (emacspeak-speak-line)))))
+
+(defun catalogue-summary-filter-lended ()
+  "Filter lended items."
+  (interactive)
+  (let ((found (catalogue-summary-mark-filter 'catalogue-lended-p)))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
+      (when found
+        (emacspeak-speak-line)))))
 
 
 ;; Navigation:
@@ -255,6 +339,10 @@ With prefix argument go to the previous item set."
         ("\C-cm" . catalogue-summary-mark-category)
         ("\C-cu" . catalogue-summary-unmark-category)
         ("\M-u" . db-unmark-all)
+        ("Fa" . catalogue-summary-filter-alien)
+        ("Fb" . catalogue-summary-filter-borrowed)
+        ("Fl" . catalogue-summary-filter-lended)
+        ("Fn" . catalogue-summary-filter-native)
         ("\C-d" . catalogue-unregister)
         ("?" . describe-mode)
         ("q" . dbs-exit))
