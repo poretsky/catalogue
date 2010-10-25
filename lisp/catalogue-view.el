@@ -523,7 +523,7 @@ With prefix argument jumps to the previous item set."
 (defun catalogue-exit ()
   "Exit catalogue and kill all it's buffers."
   (interactive)
-  (mapcar
+  (mapc
    (lambda (buffer)
      (with-current-buffer buffer
        (db-exit t)))

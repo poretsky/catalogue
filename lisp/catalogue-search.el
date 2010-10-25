@@ -88,7 +88,7 @@ Being called from summary buffer additionally marks all found records."
       (setq amount (length hits))
       (when (db-summary-buffer-p)
         (dbs-in-data-display-buffer
-         (mapcar
+         (mapc
           (lambda (item)
             (db-select-record item)
             (db-mark-record 1))

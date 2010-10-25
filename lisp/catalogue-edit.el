@@ -146,7 +146,7 @@ The second argument provides alist of predefined values."
   (when catalogue-affected-set
     (with-current-buffer (catalogue-operational-buffer)
       (let ((original-index dbc-index))
-        (mapcar
+        (mapc
          (lambda (item)
            (db-jump-to-record (car item))
            (unless (= (dbf-displayed-record-field 'set) (cdr item))
@@ -185,7 +185,7 @@ The second argument provides alist of predefined values."
   (dbc-set-database-modified-p nil)
   (let ((index (catalogue-index))
         (marked (catalogue-find-marked-records)))
-    (mapcar
+    (mapc
      (lambda (buffer)
        (with-current-buffer buffer
          (db-kill-buffers)))
@@ -193,7 +193,7 @@ The second argument provides alist of predefined values."
     (catalogue-view)
     (db-jump-to-record (min (database-no-of-records dbc-database) index))
     (when marked
-      (mapcar
+      (mapc
        (lambda (item)
          (db-select-record item)
          (db-mark-record 1))

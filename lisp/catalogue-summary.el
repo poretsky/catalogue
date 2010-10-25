@@ -42,7 +42,7 @@ available record after the last processed one."
   (if (null arg)
       (db-mark-record value)
     (dbs-in-data-display-buffer
-     (mapcar
+     (mapc
       (lambda (item)
         (db-select-record item)
         (db-mark-record value))

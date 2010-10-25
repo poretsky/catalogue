@@ -73,7 +73,7 @@ synchronized with current data display buffer."
   (if items
       (let ((original-index dbc-index))
         (with-current-buffer (catalogue-operational-buffer)
-          (mapcar
+          (mapc
            (lambda (item)
              (db-jump-to-record item)
              (catalogue-delete)
@@ -100,7 +100,7 @@ should contain a list of record indexes to be processed."
   (let ((processed 0)
         (to-process (length items)))
     (with-current-buffer (catalogue-operational-buffer)
-      (mapcar
+      (mapc
        (lambda (item)
          (db-jump-to-record item)
          (when (funcall action)
