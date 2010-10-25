@@ -89,7 +89,7 @@ is applied to the marked items if any or to the current one."
             items)
          (catalogue-lend lender)
          (db-save-database)
-         (db-next-record)))))
+         (db-next-record 0)))))
    (entire
     (catalogue-mapitems
      (lambda ()

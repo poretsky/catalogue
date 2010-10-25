@@ -190,6 +190,7 @@ correcting the `set' field. Return a number of added unit."
 (defun catalogue-item-unique-p (&optional item)
   "Check whether the current item is unique by name, category and unit number.
 If item is specified explicitly it is checked as it was the current one."
+  (declare (special first-link))
   (let ((name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
         (category (record-field (or item (dbf-displayed-record)) 'category dbc-database))
         (unit (record-field (or item (dbf-displayed-record)) 'unit dbc-database))
@@ -241,6 +242,7 @@ and issue corresponding error if needed."
 
 (defun catalogue-setup ()
   "Setup media catalogue database."
+  (declare (special catalogue-view-map))
   (setq catalogue-unknown-disk nil)
   (unless (file-exists-p catalogue-db-file)
     (db-toggle-internal-file-layout t))
@@ -248,6 +250,7 @@ and issue corresponding error if needed."
 
 (defun catalogue-view-setup ()
   "Setup view mode."
+  (declare (special catalogue-view-map catalogue-preview-map))
   (if (not catalogue-unknown-disk)
       (use-local-map catalogue-view-map)
     (require 'catalogue-media)
@@ -255,11 +258,13 @@ and issue corresponding error if needed."
 
 (defun catalogue-edit-setup ()
   "Setup record editing mode."
+  (declare (special catalogue-edit-map))
   (require 'catalogue-edit)
   (use-local-map catalogue-edit-map))
 
 (defun catalogue-summary-setup ()
   "Summary mode setup."
+  (declare (special catalogue-summary-map))
   (require 'catalogue-summary)
   (use-local-map catalogue-summary-map))
 
@@ -389,6 +394,7 @@ and issue corresponding error if needed."
   "Go to the next catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the next item set."
   (interactive "P")
+  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
      (when (eq dbf-minor-mode 'edit)
@@ -421,6 +427,7 @@ With prefix argument jumps to the next item set."
 (defun catalogue-next-category ()
   "Jump to the next category wrapping around the database if enabled."
   (interactive)
+  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
      (when (eq dbf-minor-mode 'edit)
@@ -452,6 +459,7 @@ With prefix argument jumps to the next item set."
   "Go to the previous catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the previous item set."
   (interactive "P")
+  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
      (when (eq dbf-minor-mode 'edit)
@@ -490,6 +498,7 @@ With prefix argument jumps to the previous item set."
 (defun catalogue-previous-category ()
   "Jump to the previous category wrapping around the database if enabled."
   (interactive)
+  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
      (when (eq dbf-minor-mode 'edit)

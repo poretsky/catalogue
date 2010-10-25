@@ -59,6 +59,7 @@ which should be used when guessing.")
 (defun catalogue-find-hole ()
   "Find non-complete item set and return draft of new record
 or nil if no one is found."
+  (declare (special first-link))
   (let ((draft nil)
         (name "")
         (category ""))
@@ -85,8 +86,8 @@ with the disk name in car and description in cdr."
     (unless (= 0 (call-process "cdir" nil t))
       (error "No disk inserted"))
     (goto-char (point-min))
-    (replace-regexp "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$"
-                    "\\2. \\3 (\\1)")
+    (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
+      (replace-match "\\2. \\3 (\\1)"))
     (goto-char (point-min))
     (let* ((title (thing-at-point 'line))
            (breakpoint (or (string-match
@@ -231,6 +232,7 @@ but not committed. This draft can be further edited or deleted.
 Being called non-interactively this function does not affect
 catalogue database display in any way."
   (interactive)
+  (declare (special first-link))
   (shell-command-to-string
    (concat "eject -t "
            catalogue-cd-dvd-device))

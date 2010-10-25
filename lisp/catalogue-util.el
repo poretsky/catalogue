@@ -48,6 +48,7 @@ When it contains `t' the summary window becomes active.")
 (defun catalogue-operational-buffer ()
   "Get operational buffer synchronized with current
 data display buffer creating it if necessary."
+  (declare (special catalogue-operational-buffer-name))
   (db-in-data-display-buffer
    (dbf-process-current-record-maybe t)
    (let ((orig-buffer (current-buffer))
