@@ -1,5 +1,5 @@
 (require 'catalogue-view)
-(database-set-print-name database "CD/DVD catalogue")
+(database-set-print-name database "Media collection catalogue")
 (database-set-fieldnames-to-list database
                                  '((id . one-line-string)
                                    (name . one-line-string)
