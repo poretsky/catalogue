@@ -537,6 +537,7 @@ With prefix argument jumps to the previous item set."
 ;; Autoloaded functions from other modules:
 
 (autoload 'catalogue-edit "catalogue-edit" "Edit current catalogue record." t)
+(autoload 'catalogue-add-item "catalogue-edit" "Add a new catalogue item manually." t)
 
 (autoload 'catalogue-reassign "catalogue-media" "Reassign current catalogue record to the inserted disk." t)
 
@@ -561,6 +562,7 @@ With prefix argument jumps to the previous item set."
         ("I" . catalogue-disk-identify)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
+        ("a" . catalogue-add-item)
         ("s" . catalogue-search)
         ("B" . catalogue-borrow)
         ("L" . catalogue-lend)

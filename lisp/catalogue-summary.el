@@ -332,6 +332,7 @@ With prefix argument go to the previous item set."
         ("g" . catalogue-summary)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
+        ("a" . catalogue-add-item)
         ("/" . catalogue-disk-identify)
         ("I" . catalogue-disk-identify)
         ("B" . catalogue-borrow)

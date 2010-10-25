@@ -116,6 +116,22 @@ The second argument provides alist of predefined values."
     (emacspeak-auditory-icon 'open-object)
     (emacspeak-speak-line)))
 
+(defun catalogue-add-item ()
+  "Add a new catalogue item manually."
+  (interactive)
+  (unless (or (db-data-display-buffer-p) (db-summary-buffer-p))
+    (error "Not in data display or summary buffer"))
+  (when catalogue-unknown-disk
+    (error "Not allowed while disk registration is pending"))
+  (db-in-data-display-buffer
+   (if (not (catalogue-empty-p))
+       (db-add-record)
+     (db-add-record)
+     (db-next-record 1)
+     (db-delete-record t))
+   (dbf-set-this-record-modified-p t))
+  (call-interactively 'catalogue-edit))
+
 (defun catalogue-commit ()
   "Commit current record to the database after editing."
   (interactive)
