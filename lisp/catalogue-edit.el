@@ -281,7 +281,7 @@ or insert a new line in the multiline description."
       '(("\C-c\C-c" . catalogue-commit)
         ("\C-cq" . catalogue-cancel)
         ("\C-xU" . db-revert-field)
-        ("\M-s" . db-search-field)
+        ("\C-xu" . db-revert-record)
         ([next] . catalogue-next-record)
         ([prior] . catalogue-previous-record)
         ("\C-n" . catalogue-next-line-or-field)
@@ -299,11 +299,10 @@ or insert a new line in the multiline description."
         ([end] . db-end-of-line-or-field)
         ("\r" . catalogue-newline)
         ("\n" . catalogue-newline)
-        ("\C-o" . db-open-line)
         ("\C-d" . db-delete-char)
         ("\177" . db-backward-delete-char)
         ("\M-d" . db-kill-word)
-        ("\M-\177" . db-kill-word)
+        ("\M-\177" . db-backward-kill-word)
         ("\C-k" . db-kill-line)
         ("\M-k" . db-kill-to-end)
         ("\C-w" . db-kill-region)
@@ -322,9 +321,10 @@ or insert a new line in the multiline description."
   '("Catalogue"
     ["Commit" catalogue-commit t]
     ["Cancel" catalogue-cancel t]
+    "-----"
     ["Revert record" db-revert-record t]
     ["Revert field" db-revert-field t]
-    ["Search by field" db-search-field t]
+    "-----"
     ["Help on field" db-field-help t]))
 
 

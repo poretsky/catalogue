@@ -357,6 +357,42 @@ With prefix argument go to the previous item set."
       (define-key catalogue-summary-map (car binding) (cdr binding)))
 
 
+;; Summary view menu:
+
+(easy-menu-define nil catalogue-summary-map
+  "Media catalogue summary view menu"
+  '("Catalogue"
+    ["Edit" catalogue-edit t]
+    ["Add item" catalogue-add-item t]
+    ["Delete" catalogue-unregister t]
+    "-----"
+    ["Search" catalogue-search t]
+    "-----"
+    ("Marking"
+     ["Mark this item" catalogue-summary-mark t]
+     ["Unmark this item" catalogue-summary-unmark t]
+     ["Mark this category" catalogue-summary-mark-category t]
+     ["Unmark this category" catalogue-summary-unmark-category t]
+     ["Unmark all" db-unmark-all t])
+    ("Filtering"
+     ["Alien" catalogue-summary-filter-alien t]
+     ["Native" catalogue-summary-filter-native t]
+     ["Borrowed" catalogue-summary-filter-borrowed t]
+     ["Lended" catalogue-summary-filter-lended t])
+    "-----"
+    ["Report" Catalogue-report t]
+    "-----"
+    ["Identify disk" catalogue-disk-identify t]
+    ["Reassign disk" catalogue-reassign t]
+    "-----"
+    ["Borrow" catalogue-borrow t]
+    ["Lend" catalogue-lend t]
+    ["Release" catalogue-release t]
+    ["Give up" catalogue-give-up t]
+    "-----"
+    ["Quit summary" catalogue-exit t]))
+
+
 ;;; That's all.
 
 (provide 'catalogue-summary)

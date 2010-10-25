@@ -593,14 +593,20 @@ With prefix argument jumps to the previous item set."
   "Media catalogue view menu"
   '("Catalogue"
     ["Edit" catalogue-edit (not (catalogue-empty-p))]
+    ["Add item" catalogue-add-item t]
+    ["Delete" catalogue-unregister (not (catalogue-empty-p))]
+    "-----"
     ["Search" catalogue-search (not (catalogue-empty-p))]
+    "-----"
     ["Identify disk" catalogue-disk-identify t]
+    ["Reassign" catalogue-reassign (not (catalogue-empty-p))]
+    "-----"
     ["Borrow" catalogue-borrow (not (catalogue-empty-p))]
     ["Lend" catalogue-lend (not (catalogue-empty-p))]
     ["Release" catalogue-release (not (catalogue-empty-p))]
     ["Give up" catalogue-give-up (not (catalogue-empty-p))]
-    ["Reassign" catalogue-reassign (not (catalogue-empty-p))]
-    ["Unregister" catalogue-unregister (not (catalogue-empty-p))]
+    "-----"
+    ["Summary" catalogue-summary (not (catalogue-empty-p))]
     ["Quit" catalogue-exit t]))
 
 
