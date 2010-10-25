@@ -303,6 +303,11 @@ With prefix argument go to the previous item set."
     (emacspeak-speak-line)))
 
 
+;; Autoloads:
+
+(autoload 'catalogue-report "catalogue-report" "Make a short report of the collection catalogue." t)
+
+
 ;; Key bindings for summary view:
 
 (defvar catalogue-summary-map (make-keymap)
@@ -334,11 +339,12 @@ With prefix argument go to the previous item set."
         ("R" . catalogue-release)
         ("G" . catalogue-give-up)
         ("\C-cr" . catalogue-reassign)
+        ("r" . catalogue-report)
         ("m" . catalogue-summary-mark)
         ("u" . catalogue-summary-unmark)
         ("\C-cm" . catalogue-summary-mark-category)
         ("\C-cu" . catalogue-summary-unmark-category)
-        ("\M-u" . db-unmark-all)
+        ("U" . db-unmark-all)
         ("Fa" . catalogue-summary-filter-alien)
         ("Fb" . catalogue-summary-filter-borrowed)
         ("Fl" . catalogue-summary-filter-lended)
