@@ -8,7 +8,7 @@
                                    (unit . integer)
                                    (media . one-line-string)
                                    (owner . one-line-string-or-nil)
-                                   (lended . one-line-string-or-nil)
+                                   (borrower . one-line-string-or-nil)
                                    (since . one-line-string-or-nil)
                                    (place . one-line-string)
                                    description))

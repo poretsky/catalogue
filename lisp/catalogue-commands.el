@@ -100,7 +100,7 @@ is applied to the marked items if any or to the current one."
     (dbf-displayed-record-set-field
      'since
      (format-time-string catalogue-date-format))
-    (dbf-displayed-record-set-field-and-redisplay 'lended borrower)
+    (dbf-displayed-record-set-field-and-redisplay 'borrower borrower)
     (if (not (interactive-p))
         t
       (db-save-database)
@@ -126,7 +126,7 @@ is applied to the marked items if any or to the current one."
     (catalogue-mapitems 'catalogue-release (catalogue-list-item-set)))
    (t
     (dbf-set-this-record-modified-p t)
-    (dbf-displayed-record-set-field 'lended nil)
+    (dbf-displayed-record-set-field 'borrower nil)
     (dbf-displayed-record-set-field-and-redisplay 'since nil)
     (if (not (interactive-p))
         t

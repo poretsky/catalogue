@@ -109,7 +109,7 @@
 
 (defun catalogue-lended-p (&optional item)
   "Check if displayed or specified item is lended."
-  (not (catalogue-record-field-empty-p 'lended item)))
+  (not (catalogue-record-field-empty-p 'borrower item)))
 
 (defun catalogue-borrowed-p (&optional item)
   "Check if displayed or specified item is borrowed."
