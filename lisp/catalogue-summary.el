@@ -339,6 +339,7 @@ With prefix argument go to the previous item set."
         ("L" . catalogue-lend)
         ("R" . catalogue-release)
         ("G" . catalogue-give-up)
+        ("A" . catalogue-acquire)
         ("\C-cr" . catalogue-reassign)
         ("r" . catalogue-report)
         ("m" . catalogue-summary-mark)
@@ -389,6 +390,7 @@ With prefix argument go to the previous item set."
     ["Lend" catalogue-lend t]
     ["Release" catalogue-release t]
     ["Give up" catalogue-give-up t]
+    ["Acquire" catalogue-acquire t]
     "-----"
     ["Quit summary" catalogue-exit t]))
 

@@ -577,6 +577,7 @@ With prefix argument jumps to the previous item set."
         ("L" . catalogue-lend)
         ("R" . catalogue-release)
         ("G" . catalogue-give-up)
+        ("A" . catalogue-acquire)
         ("\C-cr" . catalogue-reassign)
         ("\C-d" . catalogue-unregister)
         ("?" . describe-mode)
@@ -614,6 +615,7 @@ With prefix argument jumps to the previous item set."
     ["Lend" catalogue-lend (not (catalogue-empty-p))]
     ["Release" catalogue-release (not (catalogue-empty-p))]
     ["Give up" catalogue-give-up (not (catalogue-empty-p))]
+    ["Acquire" catalogue-acquire (not (catalogue-empty-p))]
     "-----"
     ["Summary" catalogue-summary (not (catalogue-empty-p))]
     ["Quit" catalogue-exit t]))
