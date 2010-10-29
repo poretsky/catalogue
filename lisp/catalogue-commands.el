@@ -72,12 +72,12 @@ is applied to the marked items if any or to the current one."
           (when (featurep 'emacspeak)
             (emacspeak-auditory-icon 'save-object))))))))
 
-(defun catalogue-lend (lender &optional entire)
+(defun catalogue-lend (borrower &optional entire)
   "Register this item as lended. When called with prefix argument
 in data display buffer the action is applied to the entire item set.
 In summary buffer prefix argument is not respected and action
 is applied to the marked items if any or to the current one."
-  (interactive "sLender: \nP")
+  (interactive "sBorrower: \nP")
   (cond
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
@@ -85,22 +85,22 @@ is applied to the marked items if any or to the current one."
        (if items
            (catalogue-mapitems
             (lambda ()
-              (catalogue-lend lender))
+              (catalogue-lend borrower))
             items)
-         (catalogue-lend lender)
+         (catalogue-lend borrower)
          (db-save-database)
          (db-next-record 0)))))
    (entire
     (catalogue-mapitems
      (lambda ()
-       (catalogue-lend lender))
+       (catalogue-lend borrower))
      (catalogue-list-item-set)))
    (t
     (dbf-set-this-record-modified-p t)
     (dbf-displayed-record-set-field
      'since
      (format-time-string catalogue-date-format))
-    (dbf-displayed-record-set-field-and-redisplay 'lended lender)
+    (dbf-displayed-record-set-field-and-redisplay 'lended borrower)
     (if (not (interactive-p))
         t
       (db-save-database)
