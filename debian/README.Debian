@@ -1,0 +1,9 @@
+catalogue for Debian
+--------------------
+
+For general usage instructions see README.txt.
+
+It is recommended to make a separate mountpoint for Catalogue
+to not interfere with HAL automounting used in modern distributions.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Sat, 30 Oct 2010 03:27:32 +0400

@@ -1,0 +1,5 @@
+lisp/*.el usr/share/emacs/site-lisp/catalogue
+db/*.fmt usr/share/catalogue
+db/*.dba usr/share/catalogue
+db/en/*.fmt usr/share/catalogue/en
+db/ru/*.fmt usr/share/catalogue/ru
