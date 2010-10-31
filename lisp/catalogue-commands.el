@@ -23,6 +23,10 @@
 
 ;;; Requirements:
 
+(eval-when-compile
+  (require 'database)
+  (require 'db-summary))
+
 (require 'database)
 (require 'catalogue)
 (require 'catalogue-util)

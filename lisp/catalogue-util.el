@@ -23,7 +23,11 @@
 
 ;;; Requirements:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile
+  (require 'cl)
+  (require 'database)
+  (require 'db-summary))
+
 (require 'database)
 (require 'catalogue)
 
