@@ -130,14 +130,14 @@
 Works in summary buffer as well."
   (if (db-summary-buffer-p)
       (dbs-in-data-display-buffer
-       (dbf-displayed-record-field fieldname))
+        (dbf-displayed-record-field fieldname))
     (dbf-displayed-record-field fieldname)))
 
 (defun catalogue-summary-synch-position ()
   "Synchronize position in summary buffer if any."
   (when (db-data-display-buffer-p)
     (dbf-in-summary-buffer
-     (dbs-move-to-proper-record))))
+      (dbs-move-to-proper-record))))
 
 (defun catalogue-find-hole-in-item-set (&optional item)
   "Search for a gap in the item set if any for specified or displayed record
@@ -401,8 +401,8 @@ With prefix argument jumps to the next item set."
   (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-     (when (eq dbf-minor-mode 'edit)
-       (catalogue-check-entry))))
+      (when (eq dbf-minor-mode 'edit)
+        (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) (database-no-of-records dbc-database)))
       (signal 'end-of-catalogue nil)
@@ -434,8 +434,8 @@ With prefix argument jumps to the next item set."
   (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-     (when (eq dbf-minor-mode 'edit)
-       (catalogue-check-entry))))
+      (when (eq dbf-minor-mode 'edit)
+        (catalogue-check-entry))))
   (let ((category (catalogue-this-record-field 'category))
         (found nil))
     (maprecords
@@ -466,8 +466,8 @@ With prefix argument jumps to the previous item set."
   (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-     (when (eq dbf-minor-mode 'edit)
-       (catalogue-check-entry))))
+      (when (eq dbf-minor-mode 'edit)
+        (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) 1))
       (signal 'beginning-of-catalogue nil)
@@ -505,8 +505,8 @@ With prefix argument jumps to the previous item set."
   (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-     (when (eq dbf-minor-mode 'edit)
-       (catalogue-check-entry))))
+      (when (eq dbf-minor-mode 'edit)
+        (catalogue-check-entry))))
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)

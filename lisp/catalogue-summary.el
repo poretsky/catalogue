@@ -46,14 +46,14 @@ available record after the last processed one."
   (if (null arg)
       (db-mark-record value)
     (dbs-in-data-display-buffer
-     (mapc
-      (lambda (item)
-        (db-select-record item)
-        (db-mark-record value))
-      (nreverse
-       (if (eq arg 'set)
-           (catalogue-list-item-set)
-         (catalogue-list-the-same arg)))))
+      (mapc
+       (lambda (item)
+         (db-select-record item)
+         (db-mark-record value))
+       (nreverse
+        (if (eq arg 'set)
+            (catalogue-list-item-set)
+          (catalogue-list-the-same arg)))))
     (dbs-move-to-proper-record))
   (condition-case nil
       (catalogue-next-record)
@@ -70,32 +70,32 @@ position and `nil' is returned."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
   (dbs-in-data-display-buffer
-   (let ((items (catalogue-find-marked-records))
-         (hits 0)
-         (first-hit))
-     (when items
-       (db-unmark-all))
-     (maprecords
-      (lambda (record)
-        (when (and (funcall predicate record)
-                   (or (null items)
-                       (member maplinks-index items)))
-          (db-select-record maplinks-index)
-          (db-mark-record 1)
-          (when (zerop hits)
-            (setq first-hit maplinks-index))
-          (setq hits (1+ hits))))
-      dbc-database)
-     (message "%s hit%s found"
-              (if (zerop hits)
-                  "No"
-                (db-jump-to-record first-hit)
-                (dbf-fill-summary-buffer-and-move-to-proper-record)
-                (format "%d" hits))
-              (if (= 1 hits)
-                  ""
-                "s"))
-     (not (zerop hits)))))
+    (let ((items (catalogue-find-marked-records))
+          (hits 0)
+          (first-hit))
+      (when items
+        (db-unmark-all))
+      (maprecords
+       (lambda (record)
+         (when (and (funcall predicate record)
+                    (or (null items)
+                        (member maplinks-index items)))
+           (db-select-record maplinks-index)
+           (db-mark-record 1)
+           (when (zerop hits)
+             (setq first-hit maplinks-index))
+           (setq hits (1+ hits))))
+       dbc-database)
+      (message "%s hit%s found"
+               (if (zerop hits)
+                   "No"
+                 (db-jump-to-record first-hit)
+                 (dbf-fill-summary-buffer-and-move-to-proper-record)
+                 (format "%d" hits))
+               (if (= 1 hits)
+                   ""
+                 "s"))
+      (not (zerop hits)))))
 
 
 ;;; Interactive commands:
@@ -270,8 +270,8 @@ With prefix argument go to the previous item set."
   "Go to the first record in summary buffer."
   (interactive)
   (dbs-in-data-display-buffer
-   (db-first-record)
-   (catalogue-summary-synch-position))
+    (db-first-record)
+    (catalogue-summary-synch-position))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)
@@ -281,8 +281,8 @@ With prefix argument go to the previous item set."
   "Go to the last record in summary buffer."
   (interactive)
   (dbs-in-data-display-buffer
-   (db-last-record)
-   (catalogue-summary-synch-position))
+    (db-last-record)
+    (catalogue-summary-synch-position))
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'scroll)

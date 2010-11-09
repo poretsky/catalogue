@@ -49,10 +49,10 @@ is applied to the marked items if any or to the current one."
   (cond
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
-     (let ((items (catalogue-find-marked-records)))
-       (if items
-           (catalogue-mapitems 'catalogue-borrow items)
-         (call-interactively 'catalogue-borrow)))))
+      (let ((items (catalogue-find-marked-records)))
+        (if items
+            (catalogue-mapitems 'catalogue-borrow items)
+          (call-interactively 'catalogue-borrow)))))
    (entire
     (catalogue-mapitems 'catalogue-borrow (catalogue-list-item-set)))
    (t
@@ -85,15 +85,15 @@ is applied to the marked items if any or to the current one."
   (cond
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
-     (let ((items (catalogue-find-marked-records)))
-       (if items
-           (catalogue-mapitems
-            (lambda ()
-              (catalogue-lend borrower))
-            items)
-         (catalogue-lend borrower)
-         (db-save-database)
-         (db-next-record 0)))))
+      (let ((items (catalogue-find-marked-records)))
+        (if items
+            (catalogue-mapitems
+             (lambda ()
+               (catalogue-lend borrower))
+             items)
+          (catalogue-lend borrower)
+          (db-save-database)
+          (db-next-record 0)))))
    (entire
     (catalogue-mapitems
      (lambda ()
@@ -122,10 +122,10 @@ is applied to the marked items if any or to the current one."
   (cond
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
-     (let ((items (catalogue-find-marked-records)))
-       (if items
-           (catalogue-mapitems 'catalogue-release items)
-         (call-interactively 'catalogue-release)))))
+      (let ((items (catalogue-find-marked-records)))
+        (if items
+            (catalogue-mapitems 'catalogue-release items)
+          (call-interactively 'catalogue-release)))))
    (entire
     (catalogue-mapitems 'catalogue-release (catalogue-list-item-set)))
    (t
@@ -148,10 +148,10 @@ is applied to the marked items if any or to the current one."
   (cond
    ((db-summary-buffer-p)
     (dbs-in-data-display-buffer
-     (let ((items (catalogue-find-marked-records)))
-       (if items
-           (catalogue-mapitems 'catalogue-acquire items)
-         (call-interactively 'catalogue-acquire)))))
+      (let ((items (catalogue-find-marked-records)))
+        (if items
+            (catalogue-mapitems 'catalogue-acquire items)
+          (call-interactively 'catalogue-acquire)))))
    (entire
     (catalogue-mapitems 'catalogue-acquire (catalogue-list-item-set)))
    (t
@@ -172,16 +172,16 @@ is applied to the marked items if any or to the current one."
   (interactive "sNew owner: \nP")
   (if (db-summary-buffer-p)
       (dbs-in-data-display-buffer
-       (let ((items (catalogue-find-marked-records)))
-         (if items
-             (catalogue-mapitems
-              (lambda ()
-                (catalogue-give-up new-owner))
-              items)
-           (unless (catalogue-give-up new-owner)
-             (error "This is not native item"))
-           (db-save-database)
-           (db-next-record 0))))
+        (let ((items (catalogue-find-marked-records)))
+          (if items
+              (catalogue-mapitems
+               (lambda ()
+                 (catalogue-give-up new-owner))
+               items)
+            (unless (catalogue-give-up new-owner)
+              (error "This is not native item"))
+            (db-save-database)
+            (db-next-record 0))))
     (if entire
         (catalogue-mapitems
          (lambda ()
@@ -212,18 +212,18 @@ is applied to the marked items if any or to the current one."
     (cond
      ((db-summary-buffer-p)
       (dbs-in-data-display-buffer
-       (setq items (catalogue-find-marked-records)
-             processed (length items))
-       (if items
-           (when (or (not (interactive-p))
-                     (y-or-n-p
-                      (format "Forget %d marked item%s forever? "
-                              processed (if (> processed 1) "s" ""))))
-             (catalogue-delete items))
-         (when (or (not (interactive-p))
-                   (y-or-n-p "Forget this item forever? "))
-           (catalogue-delete)
-           (setq processed 1)))))
+        (setq items (catalogue-find-marked-records)
+              processed (length items))
+        (if items
+            (when (or (not (interactive-p))
+                      (y-or-n-p
+                       (format "Forget %d marked item%s forever? "
+                               processed (if (> processed 1) "s" ""))))
+              (catalogue-delete items))
+          (when (or (not (interactive-p))
+                    (y-or-n-p "Forget this item forever? "))
+            (catalogue-delete)
+            (setq processed 1)))))
      (entire
       (when (or (not (interactive-p))
                 (y-or-n-p "Forget this entire item set forever? "))

@@ -54,20 +54,20 @@ When it contains `t' the summary window becomes active.")
 data display buffer creating it if necessary."
   (declare (special catalogue-operational-buffer-name))
   (db-in-data-display-buffer
-   (dbf-process-current-record-maybe t)
-   (let ((orig-buffer (current-buffer))
-         (database dbc-database))
-     (unless (buffer-live-p catalogue-operational-buffer)
-       (setq catalogue-operational-buffer (db-make-data-display-buffer database nil))
-       (database-set-data-display-buffers
-        database
-        (cons catalogue-operational-buffer (database-data-display-buffers database)))
-       (with-current-buffer catalogue-operational-buffer
-         (rename-buffer " *Catalogue workspace* " t)
-         (setq catalogue-operational-buffer-name (buffer-name))))
-     (with-current-buffer catalogue-operational-buffer
-       (catalogue-synchronize-with orig-buffer))
-     catalogue-operational-buffer)))
+    (dbf-process-current-record-maybe t)
+    (let ((orig-buffer (current-buffer))
+          (database dbc-database))
+      (unless (buffer-live-p catalogue-operational-buffer)
+        (setq catalogue-operational-buffer (db-make-data-display-buffer database nil))
+        (database-set-data-display-buffers
+         database
+         (cons catalogue-operational-buffer (database-data-display-buffers database)))
+        (with-current-buffer catalogue-operational-buffer
+          (rename-buffer " *Catalogue workspace* " t)
+          (setq catalogue-operational-buffer-name (buffer-name))))
+      (with-current-buffer catalogue-operational-buffer
+        (catalogue-synchronize-with orig-buffer))
+      catalogue-operational-buffer)))
 
 (defun catalogue-delete (&optional items)
   "Delete current record or clear it if it is the only one.

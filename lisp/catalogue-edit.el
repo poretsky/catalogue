@@ -128,12 +128,12 @@ The second argument provides alist of predefined values."
   (when catalogue-unknown-disk
     (error "Not allowed while disk registration is pending"))
   (db-in-data-display-buffer
-   (if (not (catalogue-empty-p))
-       (db-add-record)
-     (db-add-record)
-     (db-next-record 1)
-     (db-delete-record t))
-   (dbf-set-this-record-modified-p t))
+    (if (not (catalogue-empty-p))
+        (db-add-record)
+      (db-add-record)
+      (db-next-record 1)
+      (db-delete-record t))
+    (dbf-set-this-record-modified-p t))
   (call-interactively 'catalogue-edit))
 
 (defun catalogue-commit ()
