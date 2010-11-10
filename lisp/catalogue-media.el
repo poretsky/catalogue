@@ -50,18 +50,8 @@
   "Association list of disk categories and corresponding file masks
 which should be used when guessing.")
 
-(defconst catalogue-toc-header
-  '(("en" . "Contents:")
-    ("ru" . "Содержание:"))
-  "Disk content description header string for supported languages.")
-
 
 ;; Utility functions:
-
-(defun catalogue-category-name (category)
-  "Return name of given category."
-  (or (cdr (assq category (cdr (assoc (catalogue-language) catalogue-category-names-alist))))
-      (symbol-name category)))
 
 (defun catalogue-find-hole ()
   "Find non-complete item set and return draft of new record
@@ -293,7 +283,7 @@ And the name field also might be corrected."
           (when (and content (cdr content))
             (setq description
                   (concat
-                   (cdr (assoc (catalogue-language) catalogue-toc-header))
+                   (catalogue-language-resource catalogue-toc-header)
                    "\n"))
             (mapc
              (lambda (item)
@@ -302,7 +292,10 @@ And the name field also might be corrected."
     (when (> (length title)
              (length (record-field draft 'name dbc-database)))
       (record-set-field draft 'name title dbc-database))
-    (record-set-field draft 'category (catalogue-category-name category) dbc-database)
+    (record-set-field
+     draft 'category
+     (catalogue-language-string catalogue-category-names-alist category)
+     dbc-database)
     (record-set-field draft 'description description dbc-database)))
 
 

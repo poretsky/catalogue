@@ -256,12 +256,13 @@ or insert a new line in the multiline description."
       (catalogue-edit-completing-input
        (catalogue-known-field-values
         'category
-        (cdr (assoc (catalogue-language)
-                    catalogue-category-names-alist)))
+        (catalogue-language-resource catalogue-category-names-alist))
        'catalogue-edit-category-history))
      ((eq field 'media)
       (catalogue-edit-completing-input
-       (catalogue-known-field-values 'media catalogue-media-types-alist)
+       (catalogue-known-field-values
+        'media
+        (catalogue-language-resource catalogue-media-types-alist))
        'catalogue-edit-media-type-history))
      ((eq field 'owner)
       (catalogue-edit-string-input 'catalogue-edit-owner-history))

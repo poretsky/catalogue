@@ -21,6 +21,11 @@
 ;; Boston, MA 02111-1307, USA.
 
 
+;;; Requirements:
+
+(require 'catalogue-view)
+
+
 ;;; Code:
 
 (defconst catalogue-category-names-alist
@@ -53,10 +58,42 @@
   "Category names by language.")
 
 (defconst catalogue-media-types-alist
-  '((audio-cd . "Audio CD")
-    (data-cd . "Data CD")
-    (dvd . "DVD"))
-  "Detectable media type names alist.")
+  '(("en"
+     (audio-cd . "Audio CD")
+     (data-cd . "Data CD")
+     (dvd . "DVD")
+     (tape . "Magnetic tape")
+     (cassette . "Audio cassette")
+     (vhs . "Video cassette")
+     (vinyl . "Gram disc")
+     (paper . "Paper"))
+    ("ru"
+     (audio-cd . "Audio CD")
+     (data-cd . "Data CD")
+     (dvd . "DVD")
+     (tape . "Магнитная лента")
+     (cassette . "Аудиокассета")
+     (vhs . "Видеокассета")
+     (vinyl . "Грампластинка")
+     (paper . "Бумага")))
+  "Some predefined  media type names alist by language.")
+
+(defconst catalogue-toc-header
+  '(("en" . "Contents:")
+    ("ru" . "Содержание:"))
+  "Disk content description header string for supported languages.")
+
+
+;; Utility functions:
+
+(defun catalogue-language-resource (domain)
+  "Get language resource from specified domain."
+  (cdr (assoc (catalogue-language) domain)))
+
+(defun catalogue-language-string (domain key)
+  "Get language specific string by key from specified domain."
+  (or (cdr (assq key (catalogue-language-resource domain)))
+      (symbol-name key)))
 
 
 ;;; That's all.
