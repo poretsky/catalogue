@@ -1,3 +1,10 @@
+catalogue (2.1) unstable; urgency=low
+
+  * More predefined media types.
+  * Don't wait when opening tray from keyboard.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Wed, 10 Nov 2010 20:34:32 +0300
+
 catalogue (2.0) unstable; urgency=low
 
   * Complete redesign of disk identification and recognition mechanism.
