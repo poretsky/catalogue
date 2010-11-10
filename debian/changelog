@@ -1,3 +1,10 @@
+catalogue (2.0) unstable; urgency=low
+
+  * Complete redesign of disk identification and recognition mechanism.
+  * Added hot key for disk tray opening.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Wed, 10 Nov 2010 03:58:25 +0300
+
 catalogue (1.1) unstable; urgency=low
 
   * Fixed compile time requirements.
