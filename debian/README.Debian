@@ -1,9 +1,10 @@
 catalogue for Debian
 --------------------
 
-For general usage instructions see README.txt.
+If you wish to use Catalogue for CD and DVD media, you have to make
+sure that you hav access to the cdrom device. On Debian systems
+usually it means that you must be a member of the cdrom group.
 
-It is recommended to make a separate mountpoint for Catalogue
-to not interfere with HAL automounting used in modern distributions.
+For general usage instructions see README.txt.
 
  -- Igor B. Poretsky <poretsky@mlbox.ru>  Sat, 30 Oct 2010 03:27:32 +0400

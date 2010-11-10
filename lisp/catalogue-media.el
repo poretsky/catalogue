@@ -38,27 +38,30 @@
 
 ;;; Code:
 
-(defconst catalogue-find-subdirs-options
-  " -maxdepth 1 -mindepth 1 -noleaf -type d "
-  "Options passed to find utility to locate subdirectories.")
-
 (defconst catalogue-category-files-alist
-  '((mp3-music . ".*\\.mp[23]")
-    (video-avi . ".*\\.avi")
-    (video-ogm . ".*\\.ogm")
-    (video-mpg . ".*\\.mpg")
-    (software-deb . ".*\\.deb")
-    (software-rpm . ".*\\.rpm")
-    (software-fbsd . ".*\\.tbz")
-    (software-ms . ".*\\.exe"))
+  '((mp3-music . "\\.mp[23]$")
+    (video-avi . "\\.avi$")
+    (video-ogm . "\\.ogm$")
+    (video-mpg . "\\.mpg$")
+    (software-deb . "\\.deb")
+    (software-rpm . "\\.rpms?$")
+    (software-fbsd . "\\.tbz$")
+    (software-ms . "\\.\\(exe\\|cab\\)$"))
   "Association list of disk categories and corresponding file masks
 which should be used when guessing.")
 
-(defconst catalogue-mp3-contents-title
-  '(("en" . "Albums:")
-    ("ru" . "Альбомы:"))
-  "Title strings for mp3 disk content description for supported languages.")
+(defconst catalogue-toc-header
+  '(("en" . "Contents:")
+    ("ru" . "Содержание:"))
+  "Disk content description header string for supported languages.")
 
+
+;; Utility functions:
+
+(defun catalogue-category-name (category)
+  "Return name of given category."
+  (or (cdr (assq category (cdr (assoc (catalogue-language) catalogue-category-names-alist))))
+      (symbol-name category)))
 
 (defun catalogue-find-hole ()
   "Find non-complete item set and return draft of new record
@@ -83,298 +86,328 @@ or nil if no one is found."
      dbc-database)
     draft))
 
-(defun catalogue-guess-audio-disk-info ()
-  "Query local CDDB and return cons cell
-with the disk name in car and description in cdr."
-  (with-temp-buffer
-    (unless (= 0 (call-process "cdir" nil t))
-      (error "No disk inserted"))
-    (goto-char (point-min))
-    (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
-      (replace-match "\\2. \\3 (\\1)"))
-    (goto-char (point-min))
-    (let* ((title (thing-at-point 'line))
-           (breakpoint (or (string-match
-                            " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
-                            title)
-                           -1)))
-      (cons (substring title 0 breakpoint)
-             (progn (end-of-line)
-                    (concat (if (< breakpoint 0)
-                                ""
-                              (match-string 1 title))
-                            (buffer-substring (point) (point-max))))))))
+(defun catalogue-disk-info-extract (selector)
+  "Extract value by selector regexp from cd-info output."
+  (goto-char (point-min))
+  (let ((case-fold-search nil))
+    (and (re-search-forward selector nil t)
+         (match-string 1))))
 
-(defun catalogue-find-sole-subdir (dir)
-  "Check if given directory contains only one subdir
-and return it's name or nil otherwise."
-  (let ((coding-system-for-read catalogue-media-coding-system))
-    (and (= 1 (length
-               (shell-command-to-string
-                (concat "find "
-                        (expand-file-name dir catalogue-cd-dvd-mountpoint)
-                        catalogue-find-subdirs-options
-                        "-printf \".\""))))
-         (shell-command-to-string
-          (concat "find "
-                  (expand-file-name dir catalogue-cd-dvd-mountpoint)
-                  catalogue-find-subdirs-options
-                  "-printf \"%f\"")))))
-
-(defun catalogue-guess-mp3-disk-info ()
-  "Return cons cell with guessed name in car and description in cdr."
-  (do ((dirs '("sound" "Sound" "SOUND"
-               "sounds" "Sounds" "SOUNDS"
-               "audio" "Audio" "AUDIO"
-               "music" "Music" "MUSIC"
-               "songs" "Songs" "SONGS")
-             (cdr dirs)))
-      ((or (null dirs)
-           (file-directory-p (expand-file-name (car dirs)
-                                               catalogue-cd-dvd-mountpoint)))
-       (let* ((name (and dirs
-                         (catalogue-find-sole-subdir (car dirs))))
-              (coding-system-for-read catalogue-media-coding-system)
-              (content
-               (shell-command-to-string
-                (concat
-                 "find \""
-                 (if name
-                     (expand-file-name name
-                                       (expand-file-name
-                                        (car dirs)
-                                        catalogue-cd-dvd-mountpoint))
-                   (if dirs
-                       (expand-file-name (car dirs)
-                                         catalogue-cd-dvd-mountpoint)
-                     catalogue-cd-dvd-mountpoint))
-                 "\""
-                 catalogue-find-subdirs-options
-                 "-printf \"%f\\n\""))))
-         (cons
-          (or name "")
-          (if (string= content "")
-              content
-            (concat
-             (cdr (assoc (catalogue-language) catalogue-mp3-contents-title))
-             "\n"
-             content)))))))
-
-(defun catalogue-count-files-amount (fmask)
-  "Return amount of disk space occupied by files defined by given mask
-on CD/DVD. The mask should be a regexp matching full
-pathname of a file relative to the CD/DVD mountpoint.
-Matching is done case insensitive."
-  (let ((amount (float 0))
-        (lang-orig (getenv "LANG")))
+(defun catalogue-detect-media ()
+  "Fetch media information and try to find it in the catalogue.
+Return cons cell with found record index or nil in car
+and record draft with filled id and media type in cdr.
+For data disks the name is also preliminary set by the way."
+  (declare (special first-link))
+  (call-process "eject" nil nil nil "-t" catalogue-cd-dvd-device)
+  (let ((draft (make-record dbc-database))
+        (database dbc-database)
+        (found nil))
     (with-temp-buffer
-      (insert "(setq amount (+ amount))")
-      (backward-char 2)
-      (when catalogue-media-coding-system
-        (setenv "LANG" (symbol-name catalogue-media-coding-system)))
-      (call-process "find" nil (list (current-buffer) nil) nil
-                    catalogue-cd-dvd-mountpoint
-                    "-noleaf"
-                    "-type" "f"
-                    "-iregex"
-                    (expand-file-name fmask
-                                      catalogue-cd-dvd-mountpoint)
-                    "-printf" " %s")
-      (when catalogue-media-coding-system
-        (setenv "LANG" lang-orig))
-      (eval-buffer))
-    amount))
+      (unless (zerop (call-process "cd-info" nil t nil
+                                   "-q" "-I" "--no-header" "--dvd" "--no-device-info"
+                                   "--iso9660" "-C" catalogue-cd-dvd-device))
+        (error "No disk inserted or you have no access to %s" catalogue-cd-dvd-device))
+      (record-set-field
+       draft 'id
+       (catalogue-disk-info-extract "^Audio CD, CDDB disc ID is +\\(.*\\)$")
+       database)
+      (record-set-field
+       draft 'media
+       (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
+       database)
+      (unless (record-field draft 'id database)
+        (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
+              (listing nil))
+          (unless volume-id
+            (error "Unknown media format"))
+          (goto-char (point-min))
+          (while (re-search-forward "^ +-.* \\[LSN +\\([0-9]+\\)\\] +\\([0-9]+\\) " nil t)
+            (let ((lsn (match-string 1))
+                  (size (match-string 2)))
+              (setq listing (cons (cons (string-to-number lsn) (concat lsn ":" size)) listing))))
+          (record-set-field draft 'name volume-id database)
+          (mapc
+           (lambda (item)
+             (setq volume-id (concat volume-id ";" (cdr item))))
+           (sort listing
+                 (lambda (x y)
+                   (< (car x) (car y)))))
+          (record-set-field draft 'id (md5 volume-id) database))))
+    (maprecords
+     (lambda (record)
+       (when (string=
+              (record-field draft 'id  database)
+              (record-field record 'id database))
+         (setq found maplinks-index)
+         (maprecords-break)))
+     database)
+    (cons found draft)))
 
-(defun catalogue-video-dvd-p ()
-  "Return t if the mounted disk is recognized as video DVD."
-  (= (catalogue-count-files-amount ".*")
-     (catalogue-count-files-amount "video_ts/.*\\.\\(vob\\|ifo\\|bup\\)")))
+(defun catalogue-guess-cdda-info (draft)
+  "Try to fetch some information for currently inserted audio CD
+using cdir utility and fill name and description in the specified blank."
+  (let ((database dbc-database))
+    (with-temp-buffer
+      (unless (zerop (call-process "cdir" nil t))
+        (error "No audio disk inserted or you have no access to %s" catalogue-cd-dvd-device))
+      (goto-char (point-min))
+      (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
+        (replace-match "\\2. \\3 (\\1)"))
+      (goto-char (point-min))
+      (let* ((title (thing-at-point 'line))
+             (breakpoint (or (string-match
+                              " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
+                              title)
+                             -1)))
+        (record-set-field
+         draft 'name
+         (substring title 0 breakpoint)
+         database)
+        (record-set-field
+         draft 'description
+         (progn
+           (end-of-line)
+           (concat
+            (if (< breakpoint 0)
+                ""
+              (match-string 1 title))
+            (buffer-substring (point) (point-max))))
+         database)))))
 
-(defun catalogue-audio-book-p ()
-  "Try to recognize the mounted CD as an audio book
-and return t if success."
-  (> (catalogue-count-files-amount "book/.*\\.mp3")
-     0))
+(defun catalogue-guess-data-disk-info (draft)
+  "Try to guess category for a data disk and fill
+category and description fields in specified blank.
+And the name field also might be corrected."
+  (let ((category 'misc)
+        (description "")
+        (title nil)
+        (audio-content nil)
+        (video-content nil)
+        (sound-dir nil)
+        (sound (float 0))
+        (video (float 0))
+        (total (float 0))
+        (amount
+         (mapcar
+          (lambda (item)
+            (cons (car item) (float 0)))
+          catalogue-category-files-alist)))
+    (with-temp-buffer
+      (unless (zerop (call-process "iso-info" nil t nil
+                                   "-l" catalogue-cd-dvd-device))
+        (error "No data disk inserted or you have no access to %s" catalogue-cd-dvd-device))
+      (setq title (catalogue-disk-info-extract "^Volume *: *\\(.*?\\) *$"))
+      (unless (re-search-forward "^/:$" nil t)
+        (error "Invalid disk"))
+      (delete-region (point-min) (match-beginning 0))
+      (goto-char (point-min))
+      (let ((case-fold-search t)
+            (root-subdir nil)
+            (sound-subdir nil)
+            (in-sound nil)
+            (in-video nil))
+        (if (re-search-forward "^/book/" nil t)
+            (setq sound-dir (match-string 0))
+          (do ((dirs '("sounds?" "songs" "audio" "music") (cdr dirs)))
+              ((or (null dirs)
+                   sound-dir))
+            (let ((pattern (concat "^\\(/" (car dirs) "/[^/]+/\\):$")))
+              (when (re-search-forward pattern nil t)
+                (setq sound-dir (match-string 1)))
+              (when (re-search-forward pattern nil t)
+                (setq sound-dir nil)))))
+        (goto-char (point-min))
+        (while (not (eobp))
+          (if (looking-at "^/\\([^/]+\\)/.*:$")
+              (progn
+                (setq root-subdir (match-string 1))
+                (if (and sound-dir
+                         (looking-at (concat "^" sound-dir "\\(\\([^/]+\\)/\\)?")))
+                    (setq in-sound t
+                          in-video nil
+                          sound-subdir (match-string 2))
+                  (if in-video
+                      (setq in-video nil)
+                    (if (looking-at "^/video_ts/:$")
+                        (setq in-sound nil
+                              in-video t)
+                      (setq in-sound nil
+                            in-video nil)))))
+            (when (looking-at "^ +-.* \\[LSN +[0-9]+\\] +\\([0-9]+\\) +[^ ]+ +[0-9]+ +[0-9]+ +[0-9:]+ +\\(.*\\)$")
+              (let ((fsize (float (string-to-number (match-string 1))))
+                    (fname (match-string 2)))
+                (mapc
+                 (lambda (item)
+                   (when (string-match (cdr item) fname)
+                     (setcdr (assq (car item) amount)
+                             (+ (cdr (assq (car item) amount))
+                                fsize))
+                     (if (eq 'mp3-music (car item))
+                         (if (not in-sound)
+                             (unless (or sound-dir
+                                         (catalogue-string-empty-p root-subdir))
+                               (add-to-list 'audio-content root-subdir))
+                           (setq sound (+ sound fsize))
+                           (unless (catalogue-string-empty-p sound-subdir)
+                             (add-to-list 'audio-content sound-subdir)))
+                       (when (or (eq 'video-avi (car item))
+                                 (eq 'video-ogm (car item))
+                                 (eq 'video-mpg (car item)))
+                         (if (catalogue-string-empty-p root-subdir)
+                             (when (string-match "^\\(.+\\)\\..+?$" fname)
+                               (add-to-list 'video-content (match-string 1 fname)))
+                           (add-to-list 'video-content root-subdir))))))
+                 catalogue-category-files-alist)
+                (when (and in-video (string-match ".*\\.\\(vob\\|ifo\\|bup\\)$" fname))
+                  (setq video (+ video fsize)))
+                (setq total (+ total fsize)))))
+          (forward-line))))
+    (unless (zerop total)
+      (if (= total video)
+          (setq category 'video-dvd)
+        (let ((dominant (float 0)))
+          (mapc
+           (lambda (item)
+             (when (> (cdr item) dominant)
+               (setq category (car item)
+                     dominant (cdr item))))
+           amount))
+        (when (eq category 'mp3-music)
+          (when (and sound-dir
+                     (>= (+ sound sound) total))
+            (if (string-match "^/book/$" sound-dir)
+                (setq category 'mp3-audiobook)
+              (when (and (string-match "^/.*/\\(.*\\)/$" sound-dir)
+                         (> (length (match-string 1 sound-dir))
+                            (length title)))
+                (setq title (match-string 1 sound-dir))))))
+        (let ((content
+               (cond
+                ((eq 'mp3-music category)
+                 audio-content)
+                ((or (eq 'video-avi category)
+                     (eq 'video-ogm category)
+                     (eq 'video-mpg category))
+                 video-content))))
+          (when (and content (cdr content))
+            (setq description
+                  (concat
+                   (cdr (assoc (catalogue-language) catalogue-toc-header))
+                   "\n"))
+            (mapc
+             (lambda (item)
+               (setq description (concat description item "\n")))
+             (sort content 'string<))))))
+    (when (> (length title)
+             (length (record-field draft 'name dbc-database)))
+      (record-set-field draft 'name title dbc-database))
+    (record-set-field draft 'category (catalogue-category-name category) dbc-database)
+    (record-set-field draft 'description description dbc-database)))
 
-(defun catalogue-category-name (category)
-  "Return name of given category."
-  (or (cdr (assq category (cdr (assoc (catalogue-language) catalogue-category-names-alist))))
-      (symbol-name category)))
 
-(defun catalogue-media-type (media)
-  "Return name of given media type."
-  (or (cdr (assq media catalogue-media-types-alist))
-      (symbol-name media)))
-
-(defun catalogue-guess-disk-category ()
-  "Try to guess category of the inserted disk."
-  (cond
-   ((catalogue-video-dvd-p)
-    'video-dvd)
-   ((catalogue-audio-book-p)
-    'mp3-audiobook)
-   (t (let ((total (catalogue-count-files-amount ".*")))
-        (when (= 0 total)
-          (error "No files on this disk"))
-        (do ((cfl catalogue-category-files-alist (cdr cfl)))
-            ((or (null cfl)
-                 (> (/ (catalogue-count-files-amount (cdr (car cfl))) total)
-                    catalogue-meaningful-files-quota))
-             (if cfl
-                 (car (car cfl))
-               'misc)))))))
-
-
-;;; Interactive commands:
+;; Interactive commands:
 
 (defun catalogue-disk-identify ()
-  "Identify currently inserted disk if any and return it's index or nil.
+  "Identify currently inserted disk if any and try to find it's index card.
 This function is designed as an additional catalogue entry point,
 so it pops up the database if necessary. For unknown disk the index card
 draft is constructed and placed into the database as a new record,
-but not committed. This draft can be further edited or deleted.
-Being called non-interactively this function does not affect
-catalogue database display in any way."
+but not committed. This draft can be further edited or deleted."
   (interactive)
-  (declare (special first-link))
-  (shell-command-to-string
-   (concat "eject -t "
-           catalogue-cd-dvd-device))
-  (let ((id (shell-command-to-string (concat "cd-discid "
-                                             catalogue-cd-dvd-device
-                                             " 2>/dev/null"))))
-    (when (not (string-match "[^ ]+" id))
-      (error "No disk inserted"))
-    (shell-command-to-string (concat "umount " catalogue-cd-dvd-mountpoint))
-    (let* ((data (= 0 (call-process "mount"
-                                    nil nil nil
-                                    catalogue-cd-dvd-mountpoint)))
-           (media (if data
-                      (if (string= "023bfd01" (match-string 0 id))
-                          (catalogue-media-type 'dvd)
-                        (catalogue-media-type 'data-cd))
-                    (catalogue-media-type 'audio-cd)))
-           (id (md5 (if data
-                        (let ((coding-system-for-read 'raw-text))
-                          (shell-command-to-string
-                           (concat "find 2>/dev/null "
-                                   catalogue-cd-dvd-mountpoint
-                                   " -printf \"%A@%C@%T@%U%G%m%n%s%P\"")))
-                      id)
-                    nil nil 'raw-text t))
-           (draft
-            (cond
-             ((db-data-display-buffer-p)
-              (dbf-displayed-record))
-             ((db-summary-buffer-p)
-              (dbs-in-data-display-buffer (dbf-displayed-record)))
-             (t (catalogue-db-open)
-                nil)))
-           (category (if data
-                         (catalogue-guess-disk-category)
-                       'music))
-           (cdinfo (if data
-                       (when (eq category 'mp3-music)
-                         (catalogue-guess-mp3-disk-info))
-                     (catalogue-guess-audio-disk-info)))
-           (found nil))
-      (when data
-        (shell-command-to-string (concat "umount "
-                                         catalogue-cd-dvd-mountpoint)))
-      (maprecords
-       (lambda (record)
-         (when (string= id
-                        (record-field record 'id dbc-database))
-           (setq found maplinks-index)
-           (maprecords-break)))
-       dbc-database)
+  (let ((draft
+         (cond
+          ((db-data-display-buffer-p)
+           (dbf-displayed-record))
+          ((db-summary-buffer-p)
+           (dbs-in-data-display-buffer (dbf-displayed-record)))
+          (t (catalogue-db-open)
+             nil)))
+        (disk-info (catalogue-detect-media))
+        (found nil))
+    (if (car disk-info)
+        (progn
+          (setq catalogue-unknown-disk nil)
+          (db-jump-to-record (car disk-info))
+          (catalogue-summary-synch-position)
+          (when (and (featurep 'emacspeak)
+                     (interactive-p))
+            (emacspeak-auditory-icon 'search-hit)
+            (if (db-summary-buffer-p)
+                (emacspeak-speak-line)
+              (emacspeak-speak-current-window))))
+      (if (record-field (setq disk-info (cdr disk-info)) 'name dbc-database)
+          (catalogue-guess-data-disk-info disk-info)
+        (catalogue-guess-cdda-info disk-info))
+      (if draft
+          (unless (setq found (catalogue-find-hole-in-item-set draft))
+            (let ((hole (catalogue-find-hole)))
+              (when hole
+                (setq draft hole
+                      found (record-field draft 'unit dbc-database)))))
+        (setq draft (catalogue-find-hole)
+              found (and draft (record-field draft 'unit dbc-database))))
+      (setq catalogue-unknown-disk t)
+      (if (db-data-display-buffer-p)
+          (setq catalogue-restore-summary (dbf-summary-buffer))
+        (dbs-exit)
+        (setq catalogue-restore-summary t))
+      (dbf-kill-summary)
+      (if (not (catalogue-empty-p))
+          (db-add-record)
+        (db-add-record)
+        (db-next-record 1)
+        (db-delete-record t))
+      (dbf-set-this-record-modified-p t)
       (if found
-          (progn
-            (when (interactive-p)
-              (setq catalogue-unknown-disk nil)
-              (db-jump-to-record found)
-              (catalogue-summary-synch-position)
-              (when (featurep 'emacspeak)
-                (emacspeak-auditory-icon 'search-hit)
-                (if (db-summary-buffer-p)
-                    (emacspeak-speak-line)
-                  (emacspeak-speak-current-window))))
-            found)
-        (if draft
-            (unless (setq found (catalogue-find-hole-in-item-set draft))
-              (let ((hole (catalogue-find-hole)))
-                (when hole
-                  (setq draft hole)
-                  (setq found (record-field draft 'unit dbc-database)))))
-          (setq draft (catalogue-find-hole))
-          (setq found (and draft (record-field draft 'unit dbc-database))))
-        (when (interactive-p)
-          (setq catalogue-unknown-disk t)
-          (if (db-summary-buffer-p)
-              (progn
-                (dbs-exit)
-                (setq catalogue-restore-summary t))
-            (setq catalogue-restore-summary (dbf-summary-buffer)))
-          (dbf-kill-summary))
-        (db-in-data-display-buffer
-         (if (not (catalogue-empty-p))
-             (db-add-record)
-           (db-add-record)
-           (db-next-record 1)
-           (db-delete-record t))
-         (dbf-set-this-record-modified-p t)
-         (if found
-             (copy-record-to-record draft (dbf-displayed-record))
-           (dbf-displayed-record-set-field 'set 1)
-           (dbf-displayed-record-set-field 'category
-                                           (catalogue-category-name category))
-           (when cdinfo
-             (dbf-displayed-record-set-field 'name (car cdinfo))))
-         (when (and cdinfo
-                    (string-match (catalogue-category-name category)
-                                  (dbf-displayed-record-field 'category)))
-           (dbf-displayed-record-set-field 'description (cdr cdinfo)))
-         (dbf-displayed-record-set-field 'unit (or found 1))
-         (dbf-displayed-record-set-field 'media media)
-         (if (not (interactive-p))
-             (dbf-displayed-record-set-field 'id id)
-           (dbf-displayed-record-set-field-and-redisplay 'id id)
-           (db-view-mode)))
-        (when (and (featurep 'emacspeak)
-                   (interactive-p))
-          (emacspeak-auditory-icon 'search-miss)
-          (emacspeak-speak-current-window))
-        nil))))
+          (copy-record-to-record draft (dbf-displayed-record))
+        (dbf-displayed-record-set-field 'set 1)
+        (dbf-displayed-record-set-field
+         'category (record-field disk-info 'category dbc-database))
+        (dbf-displayed-record-set-field
+         'name (record-field disk-info 'name dbc-database)))
+      (unless (catalogue-string-empty-p (record-field disk-info 'description dbc-database))
+        (dbf-displayed-record-set-field
+         'description (record-field disk-info 'description dbc-database)))
+      (dbf-displayed-record-set-field 'unit (or found 1))
+      (dbf-displayed-record-set-field
+       'media (record-field disk-info 'media dbc-database))
+      (dbf-displayed-record-set-field-and-redisplay
+       'id (record-field disk-info 'id dbc-database))
+      (db-view-mode)
+      (when (and (featurep 'emacspeak)
+                 (interactive-p))
+        (emacspeak-auditory-icon 'search-miss)
+        (emacspeak-speak-current-window)))))
 
 (defun catalogue-reassign ()
   "Reassign current record to the inserted disk."
   (interactive)
   (unless (or (db-data-display-buffer-p) (db-summary-buffer-p))
     (error "Not in data display or summary buffer"))
-  (let ((found (catalogue-disk-identify))
-        (new-id nil))
+  (let ((disk-info (catalogue-detect-media)))
     (db-in-data-display-buffer
-     (if found
-         (when (yes-or-no-p "This disk is already registered. Are you sure? ")
-           (with-current-buffer (catalogue-operational-buffer)
-             (let ((original-index dbc-index))
-               (db-jump-to-record found)
-               (setq new-id (dbf-displayed-record-field 'id))
-               (dbf-set-this-record-modified-p t)
-               (dbf-displayed-record-set-field 'id catalogue-no-id)
-               (db-jump-to-record original-index)))
-           (catalogue-synchronize-with catalogue-operational-buffer))
-       (setq new-id (dbf-displayed-record-field 'id))
-       (db-delete-record t))
-     (when new-id
-       (dbf-set-this-record-modified-p t)
-       (dbf-displayed-record-set-field-and-redisplay 'id new-id)
-       (db-accept-record)
-       (db-view-mode)
-       (db-save-database)
-       (when (and (featurep 'emacspeak)
-                  (interactive-p))
-         (emacspeak-auditory-icon 'save-object))))))
+      (when (or (not (car disk-info))
+                (yes-or-no-p "This disk is already registered. Are you sure? "))
+        (when (car disk-info)
+          (with-current-buffer (catalogue-operational-buffer)
+            (let ((original-index dbc-index))
+              (db-jump-to-record (car disk-info))
+              (dbf-set-this-record-modified-p t)
+              (dbf-displayed-record-set-field 'id catalogue-no-id)
+              (db-jump-to-record original-index)))
+          (catalogue-synchronize-with catalogue-operational-buffer))
+        (dbf-set-this-record-modified-p t)
+        (dbf-displayed-record-set-field
+         'media (record-field (cdr disk-info) 'media dbc-database))
+        (dbf-displayed-record-set-field-and-redisplay
+         'id (record-field (cdr disk-info) 'id dbc-database))
+        (db-accept-record)
+        (db-view-mode)
+        (db-save-database)
+        (when (and (featurep 'emacspeak)
+                   (interactive-p))
+          (emacspeak-auditory-icon 'save-object))))))
 
 (defun catalogue-cancel-registration ()
   "Cancel new disk registration."
@@ -400,6 +433,11 @@ catalogue database display in any way."
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)))
+
+(defun catalogue-open-tray ()
+  "Open the disk tray."
+  (interactive)
+  (call-process "eject" nil nil nil catalogue-cd-dvd-device))
 
 
 ;; Key bindings for new disk registration preview:

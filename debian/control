@@ -7,7 +7,7 @@ Standards-Version: 3.7.3
 
 Package: catalogue
 Architecture: all
-Depends: cd-discid, cdtool, eject, edb, emacs | emacsen, ${misc:Depends}
+Depends: libcdio-utils, cdtool, eject, edb, emacs | emacsen, ${misc:Depends}
 Description: Media collection catalogue
  The main purpose of this package is to keep and manage simple media
  collection catalogue providing easy data access and control means from

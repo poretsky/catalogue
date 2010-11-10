@@ -69,25 +69,6 @@ in editing mode."
   :type 'file
   :group 'catalogue)
 
-(defcustom catalogue-cd-dvd-mountpoint (expand-file-name "/cdrom/")
-  "*CD/DVD mountpoint.
-It should be listed in fstab
-and accessible to the database user."
-  :type 'directory
-  :group 'catalogue)
-
-(defcustom catalogue-meaningful-files-quota 0.7
-  "*Quota of minimum disk space occupied by category sensible files."
-  :type 'number
-  :group 'catalogue)
-
-(defcustom catalogue-media-coding-system nil
-  "The coding system used when mounting CD or DVD.
-It should correspond to the `iocharset' mount option.
-Usually there is no need to set this option here."
-  :type '(coding-system :size 0)
-  :group 'catalogue)
-
 
 ;;; Global key bindings:
 
