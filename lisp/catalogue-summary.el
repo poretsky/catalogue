@@ -344,6 +344,7 @@ With prefix argument go to the previous item set."
         ("R" . catalogue-release)
         ("G" . catalogue-give-up)
         ("A" . catalogue-acquire)
+        ("o" . catalogue-open-tray)
         ("\C-cr" . catalogue-reassign)
         ("r" . catalogue-report)
         ("m" . catalogue-summary-mark)
@@ -389,6 +390,7 @@ With prefix argument go to the previous item set."
     "-----"
     ["Identify disk" catalogue-disk-identify t]
     ["Reassign disk" catalogue-reassign t]
+    ["Open tray" catalogue-open-tray t]
     "-----"
     ["Borrow" catalogue-borrow t]
     ["Lend" catalogue-lend t]

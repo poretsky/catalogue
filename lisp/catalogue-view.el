@@ -553,6 +553,7 @@ With prefix argument jumps to the previous item set."
 (autoload 'catalogue-add-item "catalogue-edit" "Add a new catalogue item manually." t)
 
 (autoload 'catalogue-reassign "catalogue-media" "Reassign current catalogue record to the inserted disk." t)
+(autoload 'catalogue-open-tray "catalogue-media" "Open the disk tray." t)
 
 (autoload 'catalogue-borrow "catalogue-commands" "Register item in catalogue as borrowed." t)
 (autoload 'catalogue-lend "catalogue-commands" "Register item in catalogue as lended." t)
@@ -582,6 +583,7 @@ With prefix argument jumps to the previous item set."
         ("R" . catalogue-release)
         ("G" . catalogue-give-up)
         ("A" . catalogue-acquire)
+        ("o" . catalogue-open-tray)
         ("\C-cr" . catalogue-reassign)
         ("\C-d" . catalogue-unregister)
         ("?" . describe-mode)
@@ -614,6 +616,7 @@ With prefix argument jumps to the previous item set."
     "-----"
     ["Identify disk" catalogue-disk-identify t]
     ["Reassign" catalogue-reassign (not (catalogue-empty-p))]
+    ["Open tray" catalogue-open-tray t]
     "-----"
     ["Borrow" catalogue-borrow (not (catalogue-empty-p))]
     ["Lend" catalogue-lend (not (catalogue-empty-p))]
