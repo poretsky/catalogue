@@ -437,7 +437,7 @@ but not committed. This draft can be further edited or deleted."
 (defun catalogue-open-tray ()
   "Open the disk tray."
   (interactive)
-  (call-process "eject" nil nil nil catalogue-cd-dvd-device))
+  (call-process "eject" nil 0 nil catalogue-cd-dvd-device))
 
 
 ;; Key bindings for new disk registration preview:
