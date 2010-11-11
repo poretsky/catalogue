@@ -142,28 +142,31 @@ utility and fill name, category and description in the specified blank."
       (unless (zerop (call-process "cdir" nil t))
         (error "No audio disk inserted or you have no access to %s" catalogue-cd-dvd-device))
       (goto-char (point-min))
-      (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
-        (replace-match "\\2. \\3 (\\1)"))
-      (goto-char (point-min))
-      (let* ((title (thing-at-point 'line))
-             (breakpoint (or (string-match
-                              " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
-                              title)
-                             -1)))
-        (record-set-field
-         draft 'name
-         (substring title 0 breakpoint)
-         database)
-        (record-set-field
-         draft 'description
-         (progn
-           (end-of-line)
-           (concat
-            (if (< breakpoint 0)
-                ""
-              (match-string 1 title))
-            (buffer-substring (point) (point-max))))
-         database))))
+      (unless (looking-at "^unknown cd - - [0-9]+:[0-9]+ in [0-9]+ tracks$")
+        (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
+          (replace-match "\\2. \\3 (\\1)"))
+        (goto-char (point-min))
+        (let* ((title (thing-at-point 'line))
+               (breakpoint (or (string-match
+                                " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
+                                title)
+                               -1)))
+          (record-set-field
+           draft 'name
+           (substring title 0 breakpoint)
+           database)
+          (record-set-field
+           draft 'description
+           (progn
+             (end-of-line)
+             (concat
+              (if (< breakpoint 0)
+                  ""
+                (match-string 1 title))
+              (buffer-substring (point) (point-max))))
+           database)))))
+  (unless (record-field draft 'name dbc-database)
+    (record-set-field draft 'name "" dbc-database))
   (record-set-field
    draft 'category
    (catalogue-language-string catalogue-category-names-alist 'music)
