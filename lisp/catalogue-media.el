@@ -135,8 +135,8 @@ For data disks the name is also preliminary set by the way."
     (cons found draft)))
 
 (defun catalogue-guess-cdda-info (draft)
-  "Try to fetch some information for currently inserted audio CD
-using cdir utility and fill name and description in the specified blank."
+  "Try to fetch some information for currently inserted audio CD using cdir
+utility and fill name, category and description in the specified blank."
   (let ((database dbc-database))
     (with-temp-buffer
       (unless (zerop (call-process "cdir" nil t))
@@ -163,7 +163,11 @@ using cdir utility and fill name and description in the specified blank."
                 ""
               (match-string 1 title))
             (buffer-substring (point) (point-max))))
-         database)))))
+         database))))
+  (record-set-field
+   draft 'category
+   (catalogue-language-string catalogue-category-names-alist 'music)
+   dbc-database))
 
 (defun catalogue-guess-data-disk-info (draft)
   "Try to guess category for a data disk and fill
