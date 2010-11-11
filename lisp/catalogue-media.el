@@ -87,6 +87,8 @@ or nil if no one is found."
   "Fetch media information and try to find it in the catalogue.
 Return cons cell with found record index or nil in car
 and record draft with filled id and media type in cdr.
+For audio disks the category field is set too and, in the case of
+CD-text information presence, name and description might be filled as well.
 For data disks the name is also preliminary set by the way."
   (declare (special first-link))
   (call-process "eject" nil nil nil "-t" catalogue-cd-dvd-device)
@@ -106,7 +108,11 @@ For data disks the name is also preliminary set by the way."
        draft 'media
        (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
        database)
-      (unless (record-field draft 'id database)
+      (if (record-field draft 'id database)
+          (record-set-field
+           draft 'category
+           (catalogue-language-string catalogue-category-names-alist 'music)
+           database)
         (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
               (listing nil))
           (unless volume-id
@@ -166,11 +172,7 @@ utility and fill name, category and description in the specified blank."
               (buffer-substring (point) (point-max))))
            database)))))
   (unless (record-field draft 'name dbc-database)
-    (record-set-field draft 'name "" dbc-database))
-  (record-set-field
-   draft 'category
-   (catalogue-language-string catalogue-category-names-alist 'music)
-   dbc-database))
+    (record-set-field draft 'name "" dbc-database)))
 
 (defun catalogue-guess-data-disk-info (draft)
   "Try to guess category for a data disk and fill
@@ -336,9 +338,9 @@ but not committed. This draft can be further edited or deleted."
             (if (db-summary-buffer-p)
                 (emacspeak-speak-line)
               (emacspeak-speak-current-window))))
-      (if (record-field (setq disk-info (cdr disk-info)) 'name dbc-database)
-          (catalogue-guess-data-disk-info disk-info)
-        (catalogue-guess-cdda-info disk-info))
+      (if (record-field (setq disk-info (cdr disk-info)) 'category dbc-database)
+          (catalogue-guess-cdda-info disk-info)
+        (catalogue-guess-data-disk-info disk-info))
       (if draft
           (unless (setq found (catalogue-find-hole-in-item-set draft))
             (let ((hole (catalogue-find-hole)))
