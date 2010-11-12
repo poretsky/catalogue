@@ -109,10 +109,59 @@ For data disks the name is also preliminary set by the way."
        (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
        database)
       (if (record-field draft 'id database)
-          (record-set-field
-           draft 'category
-           (catalogue-language-string catalogue-category-names-alist 'music)
-           database)
+          (let ((case-fold-search nil)
+                (toc nil)
+                (description ""))
+            (goto-char (point-min))
+            (while (re-search-forward "^CD-TEXT for \\(Disc\\|Track \\([0-9]+\\)\\):$" nil t)
+              (goto-char (match-beginning 0))
+              (let ((track (match-string 2))
+                    (title nil)
+                    (performer nil))
+                (setq toc
+                      (cons
+                       (dotimes
+                           (i 2
+                              (cons
+                               (if (catalogue-string-empty-p track)
+                                   0
+                                 (string-to-number track))
+                               (cond
+                                ((not (or (catalogue-string-empty-p title)
+                                          (catalogue-string-empty-p performer)))
+                                 (concat performer " -- " title))
+                                ((not (catalogue-string-empty-p title))
+                                 title)
+                                ((not (catalogue-string-empty-p performer))
+                                 performer)
+                                (t ""))))
+                         (forward-line)
+                         (cond
+                          ((looking-at "\tPERFORMER: *\\(.*?\\) *$")
+                           (setq performer (match-string 1)))
+                          ((looking-at "\tTITLE: *\\(.*?\\) *$")
+                           (setq title (match-string 1)))))
+                       toc))))
+            (when toc
+              (mapc
+               (lambda (item)
+                 (if (zerop (car item))
+                     (record-set-field draft 'name (cdr item) database)
+                   (setq description
+                         (concat
+                          description
+                          (number-to-string (car item))
+                          ". "
+                          (cdr item)
+                          "\n"))))
+               (sort toc
+                     (lambda (x y)
+                       (< (car x) (car y)))))
+              (record-set-field draft 'description description database))
+            (record-set-field
+             draft 'category
+             (catalogue-language-string catalogue-category-names-alist 'music)
+             database))
         (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
               (listing nil))
           (unless volume-id
@@ -148,7 +197,7 @@ utility and fill name, category and description in the specified blank."
       (unless (zerop (call-process "cdir" nil t))
         (error "No audio disk inserted or you have no access to %s" catalogue-cd-dvd-device))
       (goto-char (point-min))
-      (unless (looking-at "^unknown cd - - [0-9]+:[0-9]+ in [0-9]+ tracks$")
+      (unless (looking-at "^unknown cd - [0-9]+:[0-9]+ in [0-9]+ tracks$")
         (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
           (replace-match "\\2. \\3 (\\1)"))
         (goto-char (point-min))

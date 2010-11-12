@@ -127,10 +127,11 @@ display buffer. Otherwise you will be prompted to register it filling
 out the index card. Since some information about the disk will be
 already gathered up to this moment, more or less reasonable values for
 some fields will be suggested. For instance, media type is always
-detected automatically. For audio disks additional information is
-retreived from the cdtool local database via cdir utility, so it seems
-to be wise to add an audio disk to this database using cdown and cdadd
-utilities. For data disk some information might be extracted from the
+detected automatically. For audio disks additional information can be
+retreived from embedded cd-text, when it is available, or from the
+cdtool local database via cdir utility, so it seems to be wise to add
+an audio disk to this database using cdown and cdadd utilities
+previously. For data disk some information might be extracted from the
 disk label and directory tree, and so on.
 
 Furthermore, you may reassign currently displayed index card to any
