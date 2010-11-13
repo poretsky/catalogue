@@ -118,30 +118,29 @@ For data disks the name is also preliminary set by the way."
               (let ((track (match-string 2))
                     (title nil)
                     (performer nil))
-                (setq toc
-                      (cons
-                       (dotimes
-                           (i 2
-                              (cons
-                               (if (catalogue-string-empty-p track)
-                                   0
-                                 (string-to-number track))
-                               (cond
-                                ((not (or (catalogue-string-empty-p title)
-                                          (catalogue-string-empty-p performer)))
-                                 (concat performer " -- " title))
-                                ((not (catalogue-string-empty-p title))
-                                 title)
-                                ((not (catalogue-string-empty-p performer))
-                                 performer)
-                                (t ""))))
-                         (forward-line)
+                (push
+                 (dotimes
+                     (i 2
+                        (cons
+                         (if (catalogue-string-empty-p track)
+                             0
+                           (string-to-number track))
                          (cond
-                          ((looking-at "\tPERFORMER: *\\(.*?\\) *$")
-                           (setq performer (match-string 1)))
-                          ((looking-at "\tTITLE: *\\(.*?\\) *$")
-                           (setq title (match-string 1)))))
-                       toc))))
+                          ((not (or (catalogue-string-empty-p title)
+                                    (catalogue-string-empty-p performer)))
+                           (concat performer " -- " title))
+                          ((not (catalogue-string-empty-p title))
+                           title)
+                          ((not (catalogue-string-empty-p performer))
+                           performer)
+                          (t ""))))
+                   (forward-line)
+                   (cond
+                    ((looking-at "\tPERFORMER: *\\(.*?\\) *$")
+                     (setq performer (match-string 1)))
+                    ((looking-at "\tTITLE: *\\(.*?\\) *$")
+                     (setq title (match-string 1)))))
+                 toc)))
             (when toc
               (mapc
                (lambda (item)
@@ -150,13 +149,8 @@ For data disks the name is also preliminary set by the way."
                    (setq description
                          (concat
                           description
-                          (number-to-string (car item))
-                          ". "
-                          (cdr item)
-                          "\n"))))
-               (sort toc
-                     (lambda (x y)
-                       (< (car x) (car y)))))
+                          (format "%d. %s\n" (car item) (cdr item))))))
+               (nreverse toc))
               (record-set-field draft 'description description database))
             (record-set-field
              draft 'category
@@ -170,7 +164,7 @@ For data disks the name is also preliminary set by the way."
           (while (re-search-forward "^ +-.* \\[LSN +\\([0-9]+\\)\\] +\\([0-9]+\\) " nil t)
             (let ((lsn (match-string 1))
                   (size (match-string 2)))
-              (setq listing (cons (cons (string-to-number lsn) (concat lsn ":" size)) listing))))
+              (push (cons (string-to-number lsn) (concat lsn ":" size)) listing)))
           (record-set-field draft 'name volume-id database)
           (mapc
            (lambda (item)
@@ -196,32 +190,50 @@ utility and fill name, category and description in the specified blank."
     (with-temp-buffer
       (unless (zerop (call-process "cdir" nil t))
         (error "No audio disk inserted or you have no access to %s" catalogue-cd-dvd-device))
-      (goto-char (point-min))
-      (unless (looking-at "^unknown cd - [0-9]+:[0-9]+ in [0-9]+ tracks$")
-        (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
-          (replace-match "\\2. \\3 (\\1)"))
+      (let ((cd-text-info (record-field draft 'description database))
+            (index 0)
+            (toc nil)
+            (name "")
+            (description ""))
+        (unless (catalogue-string-empty-p cd-text-info)
+          (while (string-match "^\\([0-9]+\\)\\. +\\(.*\\)$" cd-text-info index)
+            (setq index (1+ (match-end 0)))
+            (push (cons (string-to-number (match-string 1 cd-text-info))
+                        (match-string 2 cd-text-info))
+                  toc)))
         (goto-char (point-min))
-        (let* ((title (thing-at-point 'line))
-               (breakpoint (or (string-match
-                                " +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$"
-                                title)
-                               -1)))
-          (record-set-field
-           draft 'name
-           (substring title 0 breakpoint)
-           database)
-          (record-set-field
-           draft 'description
-           (progn
-             (end-of-line)
-             (concat
-              (if (< breakpoint 0)
-                  ""
-                (match-string 1 title))
-              (buffer-substring (point) (point-max))))
-           database)))))
-  (unless (record-field draft 'name dbc-database)
-    (record-set-field draft 'name "" dbc-database)))
+        (while (re-search-forward "^ +\\([0-9:.]+\\) +\\([0-9]+\\) +\\(.*\\)$" nil t)
+          (let* ((track (string-to-number (match-string 2)))
+                 (title (match-string 3))
+                 (time (match-string 1))
+                 (known-item (assoc track toc)))
+            (when (catalogue-string-empty-p title)
+              (setq title (cdr-safe known-item)))
+            (setq title
+                  (concat
+                   (if (catalogue-string-empty-p title)
+                       (format "Track%d" track)
+                     title)
+                   (format " (%s)" time)))
+            (if known-item
+                (setcdr known-item title)
+              (push (cons track title) toc))))
+        (goto-char (point-min))
+        (when (looking-at "^\\(.*?\\) +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$")
+          (setq name (match-string 1)
+                description (concat (match-string 2) "\n")))
+        (when (or (catalogue-string-empty-p (record-field draft 'name database))
+                  (not (or (catalogue-string-empty-p name)
+                           (string= "unknown cd" name))))
+          (record-set-field draft 'name name database))
+        (mapc
+         (lambda (item)
+           (setq description
+                 (concat
+                  description
+                  (format "%d. %s\n" (car item) (cdr item)))))
+         (nreverse toc))
+        (record-set-field draft 'description description database)))))
 
 (defun catalogue-guess-data-disk-info (draft)
   "Try to guess category for a data disk and fill
