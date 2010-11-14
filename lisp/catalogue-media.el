@@ -129,9 +129,7 @@ For data disks the name is also preliminary set by the way."
             (mapc
              (lambda (item)
                (setq volume-id (concat volume-id ";" (cdr item))))
-             (sort listing
-                   (lambda (x y)
-                     (< (car x) (car y)))))
+             (sort listing 'car-less-than-car))
             (record-set-field draft 'id (md5 volume-id) database))
         (record-set-field
          draft 'category
