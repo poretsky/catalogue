@@ -69,6 +69,16 @@ in editing mode."
   :type 'file
   :group 'catalogue)
 
+(defcustom catalogue-use-cd-text t
+  "Make use of cd-text data if available when recognizing audio CD."
+  :type 'boolean
+  :group 'catalogue)
+
+(defcustom catalogue-use-cdtool-database t
+  "Make use of cdtool database when recognizing audio CD."
+  :type 'boolean
+  :group 'catalogue)
+
 
 ;;; Global key bindings:
 

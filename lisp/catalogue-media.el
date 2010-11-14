@@ -108,11 +108,33 @@ For data disks the name is also preliminary set by the way."
        draft 'media
        (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
        database)
-      (if (record-field draft 'id database)
+      (if (null (record-field draft 'id database))
+          (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
+                (listing nil))
+            (unless volume-id
+              (error "Unknown media format"))
+            (goto-char (point-min))
+            (while (re-search-forward "^ +-.* \\[LSN +\\([0-9]+\\)\\] +\\([0-9]+\\) " nil t)
+              (let ((lsn (match-string 1))
+                    (size (match-string 2)))
+                (push (cons (string-to-number lsn) (concat lsn ":" size)) listing)))
+            (record-set-field draft 'name volume-id database)
+            (mapc
+             (lambda (item)
+               (setq volume-id (concat volume-id ";" (cdr item))))
+             (sort listing
+                   (lambda (x y)
+                     (< (car x) (car y)))))
+            (record-set-field draft 'id (md5 volume-id) database))
+        (record-set-field
+         draft 'category
+         (catalogue-language-string catalogue-category-names-alist 'music)
+         database)
+        (when catalogue-use-cd-text
+          (goto-char (point-min))
           (let ((case-fold-search nil)
                 (toc nil)
                 (description ""))
-            (goto-char (point-min))
             (while (re-search-forward "^CD-TEXT for \\(Disc\\|Track \\([0-9]+\\)\\):$" nil t)
               (goto-char (match-beginning 0))
               (let ((track (match-string 2))
@@ -151,28 +173,7 @@ For data disks the name is also preliminary set by the way."
                           description
                           (format "%d. %s\n" (car item) (cdr item))))))
                (nreverse toc))
-              (record-set-field draft 'description description database))
-            (record-set-field
-             draft 'category
-             (catalogue-language-string catalogue-category-names-alist 'music)
-             database))
-        (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
-              (listing nil))
-          (unless volume-id
-            (error "Unknown media format"))
-          (goto-char (point-min))
-          (while (re-search-forward "^ +-.* \\[LSN +\\([0-9]+\\)\\] +\\([0-9]+\\) " nil t)
-            (let ((lsn (match-string 1))
-                  (size (match-string 2)))
-              (push (cons (string-to-number lsn) (concat lsn ":" size)) listing)))
-          (record-set-field draft 'name volume-id database)
-          (mapc
-           (lambda (item)
-             (setq volume-id (concat volume-id ";" (cdr item))))
-           (sort listing
-                 (lambda (x y)
-                   (< (car x) (car y)))))
-          (record-set-field draft 'id (md5 volume-id) database))))
+              (record-set-field draft 'description description database))))))
     (maprecords
      (lambda (record)
        (when (string=
@@ -400,7 +401,8 @@ but not committed. This draft can be further edited or deleted."
                 (emacspeak-speak-line)
               (emacspeak-speak-current-window))))
       (if (record-field (setq disk-info (cdr disk-info)) 'category dbc-database)
-          (catalogue-guess-cdda-info disk-info)
+          (when catalogue-use-cdtool-database
+            (catalogue-guess-cdda-info disk-info))
         (catalogue-guess-data-disk-info disk-info))
       (if draft
           (unless (setq found (catalogue-find-hole-in-item-set draft))
@@ -428,7 +430,7 @@ but not committed. This draft can be further edited or deleted."
         (dbf-displayed-record-set-field
          'category (record-field disk-info 'category dbc-database))
         (dbf-displayed-record-set-field
-         'name (record-field disk-info 'name dbc-database)))
+         'name (or (record-field disk-info 'name dbc-database) "")))
       (unless (catalogue-string-empty-p (record-field disk-info 'description dbc-database))
         (dbf-displayed-record-set-field
          'description (record-field disk-info 'description dbc-database)))
