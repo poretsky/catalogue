@@ -285,18 +285,18 @@ And the name field also might be corrected."
           (do ((dirs '("sounds?" "songs" "audio" "music") (cdr dirs)))
               ((or (null dirs)
                    sound-dir))
-            (let ((pattern (concat "^\\(/" (car dirs) "/[^/]+/\\):$")))
+            (let ((pattern (concat "^\\(/" (car dirs) "/[^/\n]+/\\):$")))
               (when (re-search-forward pattern nil t)
                 (setq sound-dir (match-string 1)))
               (when (re-search-forward pattern nil t)
                 (setq sound-dir nil)))))
         (goto-char (point-min))
         (while (not (eobp))
-          (if (looking-at "^/\\([^/]+\\)/.*:$")
+          (if (looking-at "^/\\([^/\n]+\\)/.*:$")
               (progn
                 (setq root-subdir (match-string 1))
                 (if (and sound-dir
-                         (looking-at (concat "^" sound-dir "\\(\\([^/]+\\)/\\)?")))
+                         (looking-at (concat "^" sound-dir "\\(\\([^/\n]+\\)/\\)?")))
                     (setq in-sound t
                           in-video nil
                           sound-subdir (match-string 2))
