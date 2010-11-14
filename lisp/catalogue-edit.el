@@ -249,33 +249,33 @@ The second argument provides alist of predefined values."
 or insert a new line in the multiline description."
   (interactive)
   (let ((field (dbf-this-field-name)))
-    (cond
-     ((eq field 'name)
-      (catalogue-edit-string-input 'catalogue-edit-name-history))
-     ((eq field 'category)
-      (catalogue-edit-completing-input
-       (catalogue-known-field-values
-        'category
-        (catalogue-language-resource catalogue-category-names-alist))
-       'catalogue-edit-category-history))
-     ((eq field 'media)
-      (catalogue-edit-completing-input
-       (catalogue-known-field-values
-        'media
-        (catalogue-language-resource catalogue-media-types-alist))
-       'catalogue-edit-media-type-history))
-     ((eq field 'owner)
-      (catalogue-edit-string-input 'catalogue-edit-owner-history))
-     ((eq field 'place)
-      (catalogue-edit-string-input 'catalogue-edit-place-history))
-     ((eq field 'description)
-      (call-interactively 'db-newline))
-     (t
-      (error "Function unavailable in this field"))))
-  (when (and (featurep 'emacspeak)
-             (interactive-p))
-    (emacspeak-auditory-icon 'select-object)
-    (emacspeak-speak-line)))
+    (if (eq field 'description)
+        (call-interactively 'db-newline)
+      (cond
+       ((eq field 'name)
+        (catalogue-edit-string-input 'catalogue-edit-name-history))
+       ((eq field 'category)
+        (catalogue-edit-completing-input
+         (catalogue-known-field-values
+          'category
+          (catalogue-language-resource catalogue-category-names-alist))
+         'catalogue-edit-category-history))
+       ((eq field 'media)
+        (catalogue-edit-completing-input
+         (catalogue-known-field-values
+          'media
+          (catalogue-language-resource catalogue-media-types-alist))
+         'catalogue-edit-media-type-history))
+       ((eq field 'owner)
+        (catalogue-edit-string-input 'catalogue-edit-owner-history))
+       ((eq field 'place)
+        (catalogue-edit-string-input 'catalogue-edit-place-history))
+       (t
+        (error "Function unavailable in this field")))
+      (when (and (featurep 'emacspeak)
+                 (interactive-p))
+        (emacspeak-auditory-icon 'select-object)
+        (emacspeak-speak-line)))))
 
 
 ;; Key bindings for catalogue editing:
