@@ -120,6 +120,10 @@ This function is bound to the global key stroke "C-c d", Thus, it is
 available from anywhere, but in the data display buffer you can use
 "/" or "I" as well.
 
+Note that this functionality relies on the external utilities cd-info
+and eject. If eject command is not found, cdclose is tried instead,
+but cd-info is absolutely required.
+
 To identify a disk put it into the drive and press "C-c d" or "/" if
 you are in the data display buffer. If this disk is already registered
 in the catalogue it's index card will be found and shown in the data

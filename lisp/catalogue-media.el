@@ -91,7 +91,14 @@ For audio disks the category field is set too and, in the case of
 CD-text information presence, name and description might be filled as well.
 For data disks the name is also preliminary set by the way."
   (declare (special first-link))
-  (call-process "eject" nil nil nil "-t" catalogue-cd-dvd-device)
+  (unless (zerop (call-process "which" nil nil nil "cd-info"))
+    (error "This functionality is unavailable without cd-info utility"))
+  (cond
+   ((zerop (call-process "which" nil nil nil "eject"))
+    (call-process "eject" nil nil nil "-t" catalogue-cd-dvd-device))
+   ((zerop (call-process "which" nil nil nil "cdclose"))
+    (call-process "cdclose" nil nil nil "-d" catalogue-cd-dvd-device))
+   (t (error "This functionality is unavailable without eject or cdclose utility")))
   (let ((draft (make-record dbc-database))
         (database dbc-database)
         (found nil))
@@ -255,8 +262,13 @@ And the name field also might be corrected."
             (cons (car item) (float 0)))
           catalogue-category-files-alist)))
     (with-temp-buffer
-      (unless (zerop (call-process "iso-info" nil t nil
-                                   "-l" catalogue-cd-dvd-device))
+      (unless (zerop
+               (if (zerop (call-process "which" nil nil nil "iso-info"))
+                   (call-process "iso-info" nil t nil
+                                 "-l" catalogue-cd-dvd-device)
+                 (call-process "cd-info" nil t nil
+                               "-q" "-I" "--no-header" "--dvd" "--no-device-info"
+                               "--iso9660" "-C" catalogue-cd-dvd-device)))
         (error "No data disk inserted or you have no access to %s" catalogue-cd-dvd-device))
       (setq title (catalogue-disk-info-extract "^Volume *: *\\(.*?\\) *$"))
       (unless (re-search-forward "^/:$" nil t)
@@ -401,7 +413,8 @@ but not committed. This draft can be further edited or deleted."
                 (emacspeak-speak-line)
               (emacspeak-speak-current-window))))
       (if (record-field (setq disk-info (cdr disk-info)) 'category dbc-database)
-          (when catalogue-use-cdtool-database
+          (when (and catalogue-use-cdtool-database
+                     (zerop (call-process "which" nil nil nil "cdir")))
             (catalogue-guess-cdda-info disk-info))
         (catalogue-guess-data-disk-info disk-info))
       (if draft
@@ -502,7 +515,12 @@ but not committed. This draft can be further edited or deleted."
 (defun catalogue-open-tray ()
   "Open the disk tray."
   (interactive)
-  (call-process "eject" nil 0 nil catalogue-cd-dvd-device))
+  (cond
+   ((zerop (call-process "which" nil nil nil "eject"))
+    (call-process "eject" nil 0 nil catalogue-cd-dvd-device))
+   ((zerop (call-process "which" nil nil nil "cdeject"))
+    (call-process "cdeject" nil 0 nil "-d" catalogue-cd-dvd-device))
+   (t (error "This functionality is unavailable without eject or cdeject utility"))))
 
 
 ;; Key bindings for new disk registration preview:
