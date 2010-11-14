@@ -63,9 +63,14 @@
 
 ;; Interactive commands:
 
-(defun catalogue-search (field pattern)
+(defun catalogue-search (field pattern &optional arg)
   "Search record by specified field and pattern.
-Being called from summary buffer additionally marks all found records."
+In data display buffer jumps to the first hit after the
+current item wrapping around the database automatically.
+Being called from summary buffer additionally marks all found records
+and jumps to the first found hit from the beginning.
+If some records are marked and prefix argument is in effect,
+then only those marked records are searched."
   (interactive
    (list
     (completing-read "Choose field to search by: "
@@ -73,12 +78,14 @@ Being called from summary buffer additionally marks all found records."
                      nil t nil
                      'catalogue-search-field-history
                      (car (catalogue-searchable-fields)))
-    (read-string "Enter search pattern: ")))
+    (read-string "Enter search pattern: ")
+    current-prefix-arg))
   (when (catalogue-string-empty-p pattern)
     (error "Empty pattern is not allowed"))
   (let ((amount 0)
-        (hits)
-        (hit-index))
+        (marked-items (catalogue-find-marked-records))
+        (hit-index (catalogue-index))
+        (hits nil))
     (with-current-buffer (catalogue-operational-buffer)
       (db-first-field)
       (do ((fields (catalogue-searchable-fields) (cdr fields)))
@@ -90,18 +97,42 @@ Being called from summary buffer additionally marks all found records."
       (and (setq hits (catalogue-find-marked-records))
            (setq hit-index dbc-index)
            (db-unmark-all)))
+    (when (and (db-summary-buffer-p) arg hits marked-items)
+      (let ((filtered nil))
+        (mapc
+         (lambda (item)
+           (when (member item marked-items)
+             (push item filtered)))
+         hits)
+        (setq hits filtered)))
+    (when (db-summary-buffer-p)
+      (setq hit-index (car-safe hits))
+      (if hit-index
+          (mapc
+           (lambda (item)
+             (when (< item hit-index)
+               (setq hit-index item)))
+           hits)
+        (setq hit-index dbs-index)))
     (when hits
       (setq amount (length hits))
       (when (db-summary-buffer-p)
-        (dbs-in-data-display-buffer
+        (if (or arg (not marked-items))
+            (setq marked-items hits)
           (mapc
            (lambda (item)
-             (db-select-record item)
-             (db-mark-record 1))
-           hits)))
-      (db-jump-to-record hit-index)
-      (when (db-data-display-buffer-p)
-        (catalogue-summary-synch-position)))
+             (add-to-list 'marked-items item))
+           hits))))
+    (when marked-items
+      (db-in-data-display-buffer
+        (mapc
+         (lambda (item)
+           (db-select-record item)
+           (db-mark-record 1))
+         marked-items)))
+    (db-jump-to-record hit-index)
+    (when (db-data-display-buffer-p)
+      (catalogue-summary-synch-position))
     (message "%d item%s found" amount (if (= 1 amount) "" "s"))
     (when (and (featurep 'emacspeak)
                (interactive-p))

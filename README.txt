@@ -225,17 +225,26 @@ allow to select items by their status:
 "F b" -- borrowed;
 "F l" -- lended.
 
-These filters are applied to the marked items if any or to all ones if
-no marks are in effect. After applying a filter, only those items that
-satisfy filter condition remain marked.
+Normally these filters mark all items that satisfy respective
+conditions, but being invoked with prefix argument when some marks are
+in effect they are applied only to the marked items unmarking all
+irrelevant ones. Thus, the filters can be chained in either
+disjunctive or conjunctive manner.
+
+When a filter is successively applied the first hit becomes current
+item.
 
 
 3.8.3. Searching
 
 The searching mechanism described in 3.2 is available in the summary
 buffer as well, but at the contrary to the data display buffer, here
-all found items become marked and before starting search all existing
-marks are cleared.
+all found items become marked and pointer is moved to the first hit
+from the beginning of the database. Being invoked with prefix argument
+when some marks are in effect it searches only among marked items and
+only those satisfying search criteria remain marked afterwards. Thus,
+several searches by different fields can be combined and chained with
+filters described in 3.8.2.
 
 In addition, forward and backward incremental search functions are
 also available here. As usual, these functions are bound to "C-s" and

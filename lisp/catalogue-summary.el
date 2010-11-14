@@ -59,26 +59,27 @@ available record after the last processed one."
       (catalogue-next-record)
     (end-of-catalogue nil)))
 
-(defun catalogue-summary-mark-filter (predicate)
-  "Filter marked records according to specified predicate.
-If some records are marked before calling this function
-then those of them unsatisfying the predicate will be unmarked.
-Otherwise all records satisfying predicate will be marked.
-If some hits are found pointer is moved to the first one
-and `t' is returned. Otherwise pointer remains on it's original
-position and `nil' is returned."
+(defun catalogue-summary-mark-filter (predicate marked-only)
+  "Filter records according to specified predicate.
+If second argument is not `nil' and some records are marked
+before calling this function then those of them unsatisfying
+the predicate will be unmarked. Otherwise all records satisfying
+predicate will be marked. If some hits are found pointer is moved
+to the first one and `t' is returned. Otherwise pointer remains
+on it's original position and `nil' is returned."
   (unless (db-summary-buffer-p)
     (error "Not in summary buffer"))
   (dbs-in-data-display-buffer
     (let ((items (catalogue-find-marked-records))
           (hits 0)
           (first-hit))
-      (when items
+      (when (and marked-only items)
         (db-unmark-all))
       (maprecords
        (lambda (record)
          (when (and (funcall predicate record)
-                    (or (null items)
+                    (or (not marked-only)
+                        (null items)
                         (member maplinks-index items)))
            (db-select-record maplinks-index)
            (db-mark-record 1)
@@ -169,43 +170,48 @@ Position is advanced to the next record."
 
 ;; Filtering:
 
-(defun catalogue-summary-filter-alien ()
-  "Filter alien items."
-  (interactive)
+(defun catalogue-summary-filter-alien (&optional arg)
+  "Filter alien items. With prefix argument apply selection
+to the marked items if any unmarking non-alien ones."
+  (interactive "P")
   (let ((found
          (catalogue-summary-mark-filter
           (lambda (record)
-            (not (catalogue-native-p record))))))
+            (not (catalogue-native-p record)))
+          arg)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
       (when found
         (emacspeak-speak-line)))))
 
-(defun catalogue-summary-filter-native ()
-  "Filter native items."
-  (interactive)
-  (let ((found (catalogue-summary-mark-filter 'catalogue-native-p)))
+(defun catalogue-summary-filter-native (&optional arg)
+  "Filter native items. With prefix argument apply selection
+to the marked items if any unmarking non-native ones."
+  (interactive "P")
+  (let ((found (catalogue-summary-mark-filter 'catalogue-native-p arg)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
       (when found
         (emacspeak-speak-line)))))
 
-(defun catalogue-summary-filter-borrowed ()
-  "Filter borrowed items."
-  (interactive)
-  (let ((found (catalogue-summary-mark-filter 'catalogue-borrowed-p)))
+(defun catalogue-summary-filter-borrowed (&optional arg)
+  "Filter borrowed items. With prefix argument apply selection
+to the marked items if any unmarking not borrowed ones."
+  (interactive "P")
+  (let ((found (catalogue-summary-mark-filter 'catalogue-borrowed-p arg)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
       (when found
         (emacspeak-speak-line)))))
 
-(defun catalogue-summary-filter-lended ()
-  "Filter lended items."
-  (interactive)
-  (let ((found (catalogue-summary-mark-filter 'catalogue-lended-p)))
+(defun catalogue-summary-filter-lended (&optional arg)
+  "Filter lended items. With prefix argument apply selection
+to the marked items if any unmarking not lended ones."
+  (interactive "P")
+  (let ((found (catalogue-summary-mark-filter 'catalogue-lended-p arg)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon (if found 'search-hit 'search-miss))
