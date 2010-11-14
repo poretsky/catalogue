@@ -42,6 +42,8 @@
   "Searched field name history.")
 
 
+;; Utility functions:
+
 (defun catalogue-searchable-fields ()
   "Get list of searchable fields."
   (unless catalogue-searchable-fields-list
@@ -59,7 +61,7 @@
   catalogue-searchable-fields-list)
 
 
-;;; Interactive commands:
+;; Interactive commands:
 
 (defun catalogue-search (field pattern)
   "Search record by specified field and pattern.
@@ -72,7 +74,7 @@ Being called from summary buffer additionally marks all found records."
                      'catalogue-search-field-history
                      (car (catalogue-searchable-fields)))
     (read-string "Enter search pattern: ")))
-  (when (string= pattern "")
+  (when (catalogue-string-empty-p pattern)
     (error "Empty pattern is not allowed"))
   (let ((amount 0)
         (hits)
