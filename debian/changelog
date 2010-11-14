@@ -1,3 +1,15 @@
+catalogue (2.2) unstable; urgency=low
+
+  * Fixed filling category for audio CD.
+  * Make use of embedded cd-text when guessing audio CD info.
+  * Added customization options to enable/disable use of cd-text and
+    cdtool database when recognizing audio CD. Both are enabled by
+    default.
+  * Weakened package dependencies.
+  * Fixed data disk content guessing bug.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Sun, 14 Nov 2010 07:41:27 +0300
+
 catalogue (2.1) unstable; urgency=low
 
   * More predefined media types.
