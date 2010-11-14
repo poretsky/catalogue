@@ -1,3 +1,10 @@
+catalogue (2.3) unstable; urgency=low
+
+  * Changed logic of search and filter functions to make a consistent
+    mechanism allowing complex selections.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Sun, 14 Nov 2010 16:35:56 +0300
+
 catalogue (2.2) unstable; urgency=low
 
   * Fixed filling category for audio CD.
