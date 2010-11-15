@@ -92,7 +92,7 @@ on it's original position and `nil' is returned."
                    "No"
                  (db-jump-to-record first-hit)
                  (dbf-fill-summary-buffer-and-move-to-proper-record)
-                 (format "%d" hits))
+                 (number-to-string hits))
                (if (= 1 hits)
                    ""
                  "s"))
