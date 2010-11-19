@@ -46,9 +46,12 @@
     (software-deb . "\\.deb")
     (software-rpm . "\\.rpms?$")
     (software-fbsd . "\\.tbz$")
-    (software-ms . "\\.\\(exe\\|cab\\)$"))
+    (software-ms . "\\.\\(exe\\|cab\\)$")
+    (misc . ".*"))
   "Association list of disk categories and corresponding file masks
-which should be used when guessing.")
+that is consulted when guessing. Since this list is traversed
+sequentially from the beginning through the end, the more
+specific items should be placed before the general ones.")
 
 
 ;; Utility functions:
