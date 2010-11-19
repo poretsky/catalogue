@@ -563,7 +563,8 @@ With prefix argument jumps to the previous item set."
 
 (autoload 'catalogue-summary "catalogue-summary" "Pop up summary window or synchronize it.")
 
-(autoload 'catalogue-search "catalogue-search" "Search record by specified field and pattern." t)
+(autoload 'catalogue-search "catalogue-search" "Search records by specified pattern." t)
+(autoload 'catalogue-search-by-field "catalogue-search" "Search records by specified field and pattern." t)
 
 
 ;; Key bindings for catalogue viewing:
@@ -578,6 +579,7 @@ With prefix argument jumps to the previous item set."
         ("e" . catalogue-edit)
         ("a" . catalogue-add-item)
         ("s" . catalogue-search)
+        ("\M-s" . catalogue-search-by-field)
         ("B" . catalogue-borrow)
         ("L" . catalogue-lend)
         ("R" . catalogue-release)
@@ -613,6 +615,7 @@ With prefix argument jumps to the previous item set."
     ["Delete" catalogue-unregister (not (catalogue-empty-p))]
     "-----"
     ["Search" catalogue-search (not (catalogue-empty-p))]
+    ["Search by field" catalogue-search-by-field (not (catalogue-empty-p))]
     "-----"
     ["Identify disk" catalogue-disk-identify t]
     ["Reassign" catalogue-reassign (not (catalogue-empty-p))]

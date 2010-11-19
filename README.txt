@@ -67,16 +67,23 @@ item and "C-n" and "C-p" to jump to the next or previous category.
 
 3.2. Searching
 
-To search an item by field content press "s" in the data display
+There are two database search functions available in the data display
+buffer: general search by the name and description content and search
+by specified field. To make general search press "s" or choose an
+appropriate item from the menu and enter search pattern when prompted.
+
+To search records by field content press "M-s" in the data display
 buffer or choose this function from the Catalogue menu. You will be
 prompted for field that can be chosen from completions and search
-pattern. In the simplest case the search pattern is treated as a
-substring that may optionally be preceded by a comparison operator
-"<", ">" or "=" or as a regular expression if it is preceded by
-"/". These elementary patterns may be combined by logical operators
-"AND", "OR", and "NOT". Searching process starts from the item next to
-the current one and goes forward wrapping around automatically. If it
-succeeds the first found item becomes the current one.
+pattern.
+
+In the simplest case the search pattern is treated as a substring that
+may optionally be preceded by a comparison operator "<", ">" or "=" or
+as a regular expression if it is preceded by "/". These elementary
+patterns may be combined by logical operators "AND", "OR", and
+"NOT". Searching process starts from the item next to the current one
+and goes forward wrapping around automatically. If it succeeds the
+first found item becomes the current one.
 
 
 3.3. Editing

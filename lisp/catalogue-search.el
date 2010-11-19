@@ -50,36 +50,25 @@
     (with-current-buffer (catalogue-operational-buffer)
       (db-next-record 0)
       (db-last-field)
-      (setq catalogue-searchable-fields-list
-            (do ((result (list (symbol-name (dbf-this-field-name)))
-                         (cons (symbol-name (dbf-this-field-name)) result)))
-                ((zerop dbf-this-field-index)
-                 result)
-              (db-previous-field 1)))
+      (while
+          (progn
+            (push (symbol-name (dbf-this-field-name)) catalogue-searchable-fields-list)
+            (not (zerop dbf-this-field-index)))
+        (db-previous-field 1))
       (db-view-mode)
       (db-next-record 0)))
   catalogue-searchable-fields-list)
 
-
-;; Interactive commands:
-
-(defun catalogue-search (field pattern &optional arg)
-  "Search record by specified field and pattern.
+(defun catalogue-search-engine (pattern marked-only &optional field)
+  "Search records by specified pattern and return hits list.
 In data display buffer jumps to the first hit after the
 current item wrapping around the database automatically.
 Being called from summary buffer additionally marks all found records
 and jumps to the first found hit from the beginning.
-If some records are marked and prefix argument is in effect,
-then only those marked records are searched."
-  (interactive
-   (list
-    (completing-read "Choose field to search by: "
-                     (catalogue-searchable-fields)
-                     nil t nil
-                     'catalogue-search-field-history
-                     (car (catalogue-searchable-fields)))
-    (read-string "Enter search pattern: ")
-    current-prefix-arg))
+If some records are marked and second argument is not `nil',
+then only those marked records are searched and the ones unsatisfying
+search criteria are unmarked. If field is not specified then general
+search is performed by the name and description fields in conjunction."
   (when (catalogue-string-empty-p pattern)
     (error "Empty pattern is not allowed"))
   (let ((amount 0)
@@ -87,17 +76,37 @@ then only those marked records are searched."
         (hit-index (catalogue-index))
         (hits nil))
     (with-current-buffer (catalogue-operational-buffer)
-      (db-first-field)
-      (do ((fields (catalogue-searchable-fields) (cdr fields)))
-          ((or (null fields)
-               (string= field (car fields))))
-        (db-next-field 1))
       (db-unmark-all)
-      (db-search-field pattern t)
+      (if (null field)
+          (let ((original-position dbc-index)
+                (first-hit))
+            (db-move-to-field-exact (dbf-fieldname->displayspecno 'name))
+            (db-search-field pattern t)
+            (setq first-hit dbc-index)
+            (db-jump-to-record original-position)
+            (db-move-to-field-exact (dbf-fieldname->displayspecno 'description))
+            (db-search-field pattern t)
+            (if (= original-position dbc-index)
+                (unless (= dbc-index first-hit)
+                  (db-jump-to-record first-hit))
+              (unless (= original-position first-hit)
+                (when (or (and (< original-position first-hit)
+                               (< first-hit dbc-index))
+                          (and (< original-position first-hit)
+                               (< dbc-index original-position))
+                          (and (< dbc-index original-position)
+                               (< first-hit dbc-index)))
+                  (db-jump-to-record first-hit)))))
+        (db-first-field)
+        (do ((fields (catalogue-searchable-fields) (cdr fields)))
+            ((or (null fields)
+                 (string= field (car fields))))
+          (db-next-field 1))
+        (db-search-field pattern t))
       (and (setq hits (catalogue-find-marked-records))
            (setq hit-index dbc-index)
            (db-unmark-all)))
-    (when (and (db-summary-buffer-p) arg hits marked-items)
+    (when (and (db-summary-buffer-p) marked-only hits marked-items)
       (let ((filtered nil))
         (mapc
          (lambda (item)
@@ -117,7 +126,7 @@ then only those marked records are searched."
     (when hits
       (setq amount (length hits))
       (when (db-summary-buffer-p)
-        (if (or arg (not marked-items))
+        (if (or marked-only (not marked-items))
             (setq marked-items hits)
           (mapc
            (lambda (item)
@@ -134,6 +143,55 @@ then only those marked records are searched."
     (when (db-data-display-buffer-p)
       (catalogue-summary-synch-position))
     (message "%d item%s found" amount (if (= 1 amount) "" "s"))
+    hits))
+
+
+;; Interactive commands:
+
+(defun catalogue-search (pattern &optional arg)
+  "Search records by specified pattern examining name and description fields.
+In data display buffer jumps to the first hit after the
+current item wrapping around the database automatically.
+Being called from summary buffer additionally marks all found records
+and jumps to the first found hit from the beginning.
+If some records are marked and prefix argument is in effect,
+then only those marked records are searched and the ones
+unsatisfying search criteria are unmarked."
+  (interactive
+   (list
+    (read-string "Enter search pattern: ")
+    current-prefix-arg))
+  (let ((hits (catalogue-search-engine pattern arg)))
+    (when (and (featurep 'emacspeak)
+               (interactive-p))
+      (emacspeak-auditory-icon
+       (if hits
+           'search-hit
+         'search-miss))
+      (when hits
+        (if (db-summary-buffer-p)
+            (emacspeak-speak-line)
+          (emacspeak-speak-current-window))))))
+
+(defun catalogue-search-by-field (field pattern &optional arg)
+  "Search records by specified field and pattern.
+In data display buffer jumps to the first hit after the
+current item wrapping around the database automatically.
+Being called from summary buffer additionally marks all found records
+and jumps to the first found hit from the beginning.
+If some records are marked and prefix argument is in effect,
+then only those marked records are searched and the ones
+unsatisfying search criteria are unmarked."
+  (interactive
+   (list
+    (completing-read "Choose field to search by: "
+                     (catalogue-searchable-fields)
+                     nil t nil
+                     'catalogue-search-field-history
+                     (car (catalogue-searchable-fields)))
+    (read-string "Enter search pattern: ")
+    current-prefix-arg))
+  (let ((hits (catalogue-search-engine pattern arg field)))
     (when (and (featurep 'emacspeak)
                (interactive-p))
       (emacspeak-auditory-icon

@@ -339,6 +339,7 @@ With prefix argument go to the previous item set."
         ("\C-s" . db-isearch-forward)
         ("\C-r" . db-isearch-backward)
         ("s" . catalogue-search)
+        ("\M-s" . catalogue-search-by-field)
         ("g" . catalogue-summary)
         ([return] . catalogue-edit)
         ("e" . catalogue-edit)
@@ -379,6 +380,7 @@ With prefix argument go to the previous item set."
     ["Delete" catalogue-unregister t]
     "-----"
     ["Search" catalogue-search t]
+    ["Search by field" catalogue-search-by-field t]
     "-----"
     ("Marking"
      ["Mark this item" catalogue-summary-mark t]
