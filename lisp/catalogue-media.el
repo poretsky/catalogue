@@ -46,8 +46,7 @@
     (software-deb . "\\.deb")
     (software-rpm . "\\.rpms?$")
     (software-fbsd . "\\.tbz$")
-    (software-ms . "\\.\\(exe\\|cab\\)$")
-    (misc . ".*"))
+    (software-ms . "\\.\\(exe\\|cab\\)$"))
   "Association list of disk categories and corresponding file masks
 that is consulted when guessing. Since this list is traversed
 sequentially from the beginning through the end, the more
@@ -341,13 +340,17 @@ And the name field also might be corrected."
     (unless (zerop total)
       (if (= total video)
           (setq category 'video-dvd)
-        (let ((dominant (float 0)))
+        (let ((dominant (float 0))
+              (other total))
           (mapc
            (lambda (item)
              (when (> (cdr item) dominant)
                (setq category (car item)
-                     dominant (cdr item))))
-           amount))
+                     dominant (cdr item)))
+             (setq other (- other (cdr item))))
+           amount)
+          (when (> other dominant)
+            (setq category 'misc)))
         (when (eq category 'mp3-music)
           (when (and sound-dir
                      (>= (+ sound sound) total))
