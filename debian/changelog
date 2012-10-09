@@ -1,3 +1,9 @@
+catalogue (2.6.0lucid1) lucid; urgency=low
+
+  * New version of underlying database.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Tue, 09 Oct 2012 12:38:44 +0400
+
 catalogue (2.5.3lucid1) lucid; urgency=low
 
   * Per distribution build.

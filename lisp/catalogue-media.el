@@ -25,8 +25,7 @@
 
 (eval-when-compile
   (require 'cl)
-  (require 'database)
-  (require 'db-summary))
+  (require 'database))
 
 (require 'easymenu)
 (require 'database)

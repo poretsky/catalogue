@@ -24,8 +24,7 @@
 ;;; Requirements:
 
 (eval-when-compile
-  (require 'database)
-  (require 'db-summary))
+  (require 'database))
 
 (require 'database)
 (require 'catalogue)
