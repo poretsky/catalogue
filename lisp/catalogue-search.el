@@ -25,8 +25,7 @@
 
 (eval-when-compile
   (require 'cl)
-  (require 'database)
-  (require 'db-summary))
+  (require 'database))
 
 (require 'database)
 (require 'catalogue-view)
@@ -52,7 +51,7 @@
       (db-last-field)
       (while
           (progn
-            (push (symbol-name (dbf-this-field-name)) catalogue-searchable-fields-list)
+            (push (symbol-name (dbf-this-field-name (edb--S :this-ds))) catalogue-searchable-fields-list)
             (not (zerop dbf-this-field-index)))
         (db-previous-field 1))
       (db-view-mode)

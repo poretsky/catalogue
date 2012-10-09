@@ -24,8 +24,7 @@
 ;;; Requirements:
 
 (eval-when-compile
-  (require 'database)
-  (require 'db-summary))
+  (require 'database))
 
 (require 'easymenu)
 (require 'database)
@@ -69,7 +68,7 @@
    (read-string
     "Input new value or try history: "
     nil history
-    (dbf-displayed-record-field (dbf-this-field-name))
+    (dbf-displayed-record-field (dbf-this-field-name (edb--S :this-ds)))
     t)))
 
 (defun catalogue-edit-completing-input (collection history)
@@ -78,7 +77,7 @@
    (completing-read
     "Input with completions or try history: "
     collection nil nil nil history
-    (dbf-displayed-record-field (dbf-this-field-name))
+    (dbf-displayed-record-field (dbf-this-field-name (edb--S :this-ds)))
     t)))
 
 (defun catalogue-known-field-values (field predefined)
@@ -248,7 +247,7 @@ The second argument provides alist of predefined values."
   "Input field content with history and completions if available
 or insert a new line in the multiline description."
   (interactive)
-  (let ((field (dbf-this-field-name)))
+  (let ((field (dbf-this-field-name (edb--S :this-ds))))
     (if (eq field 'description)
         (call-interactively 'db-newline)
       (cond

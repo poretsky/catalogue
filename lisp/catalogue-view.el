@@ -25,8 +25,7 @@
 
 (eval-when-compile
   (require 'cl)
-  (require 'database)
-  (require 'db-summary))
+  (require 'database))
 
 (require 'easymenu)
 (require 'database)
@@ -214,7 +213,7 @@ If item is specified explicitly it is checked as it was the current one."
   "Check currently editing  entry correctness
 and issue corresponding error if needed."
   (let ((item (copy-record (dbf-displayed-record)))
-        (field  (dbf-this-field-name))
+        (field  (dbf-this-field-name (edb--S :this-ds)))
         (suggest ", fix it first or discard changes"))
     (cond
      ((or (eq field 'name) (eq field 'category))
