@@ -1,3 +1,11 @@
+catalogue (2.5.3squeeze1) squeeze; urgency=low
+
+  * Per distribution build.
+  * Lintian complaints satisfied.
+  * Bumped standards version to 3.9.3.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Tue, 09 Oct 2012 05:38:11 +0400
+
 catalogue (2.5.2) unstable; urgency=low
 
   * Source directory added to the load path to allow source access
