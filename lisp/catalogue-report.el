@@ -46,11 +46,11 @@ Each item set in the report is represented by one entry."
           (category nil))
       (db-hide-records
        (lambda (record)
-         (if (and (string= name (record-field record 'name dbc-database))
-                  (string= category (record-field record 'category dbc-database)))
+         (if (and (string= name (db-record-field record 'name dbc-database))
+                  (string= category (db-record-field record 'category dbc-database)))
              t
-           (setq name (record-field record 'name dbc-database)
-                 category (record-field record 'category dbc-database))
+           (setq name (db-record-field record 'name dbc-database)
+                 category (db-record-field record 'category dbc-database))
            nil))))
     (let ((resource-path (cons catalogue-resource-directory catalogue-display-format-path))
           (report-format nil))

@@ -58,8 +58,8 @@
 
 (defun catalogue-replace-this-field-value (str)
   "Replace current field by provided string."
-  (goto-char (dbf-this-field-beginning-pos))
-  (delete-region (dbf-this-field-beginning-pos) (dbf-this-field-end-pos))
+  (db-beginning-of-field)
+  (delete-region (point) (dbf-this-field-end-pos))
   (insert str))
 
 (defun catalogue-edit-string-input (history)
@@ -84,13 +84,12 @@
   "Get list of known values for specified field.
 The second argument provides alist of predefined values."
   (let ((collection (mapcar 'cdr predefined)))
-    (maprecords
+    (db-maprecords
      (lambda (record)
-       (unless (= maplinks-index dbc-index)
-         (let ((item (record-field record field dbc-database)))
+       (unless (= db-lmap-index (catalogue-index))
+         (let ((item (db-record-field record field dbc-database)))
            (unless (catalogue-string-empty-p item)
-             (add-to-list 'collection item)))))
-     dbc-database)
+             (add-to-list 'collection item))))))
     collection))
 
 
@@ -108,10 +107,11 @@ The second argument provides alist of predefined values."
       (progn
         (dbs-exit)
         (setq catalogue-restore-summary t))
-    (setq catalogue-restore-summary (dbf-summary-buffer)))
-  (dbf-kill-summary)
+    (setq catalogue-restore-summary (catalogue-summary-buffer)))
+  (catalogue-kill-summary)
   (setq catalogue-affected-set nil)
   (setq catalogue-editing-p t)
+  (database-edit-mode)
   (db-next-record 0)
   (db-first-field)
   (when (and (featurep 'emacspeak)
@@ -140,15 +140,15 @@ The second argument provides alist of predefined values."
   (interactive)
   (unless (db-data-display-buffer-p)
     (error "Not in data display buffer"))
-  (unless (eq dbf-minor-mode 'edit)
+  (unless (eq 'database-edit-mode major-mode)
     (error "Not in editing mode"))
   (catalogue-check-entry)
-  (db-commit-record)
+  (db-accept-record)
   (setq catalogue-editing-p nil)
   (db-view-mode)
   (when catalogue-affected-set
     (with-current-buffer (catalogue-operational-buffer)
-      (let ((original-index dbc-index))
+      (let ((original-index (catalogue-index)))
         (mapc
          (lambda (item)
            (db-jump-to-record (car item))
@@ -180,12 +180,12 @@ The second argument provides alist of predefined values."
   (interactive)
   (unless (db-data-display-buffer-p)
     (error "Not in data display buffer"))
-  (unless (eq dbf-minor-mode 'edit)
+  (unless (eq 'database-edit-mode major-mode)
     (error "Not in editing mode"))
   (setq catalogue-affected-set nil)
   (dbf-set-this-field-modified-p nil)
   (dbf-set-this-record-modified-p nil)
-  (dbc-set-database-modified-p nil)
+  (database-set-modified-p dbc-database nil)
   (let ((index (catalogue-index))
         (marked (catalogue-find-marked-records)))
     (mapc
@@ -220,11 +220,11 @@ The second argument provides alist of predefined values."
   (interactive)
   (if (or catalogue-record-wraparound
           (> (count-lines (point) (point-max)) 1))
-      (let ((prev dbf-this-field-index))
+      (let ((prev (edb--S :this-fidx)))
         (db-next-line-or-field 1)
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (unless (= prev dbf-this-field-index)
+          (unless (= prev (edb--S :this-fidx))
             (emacspeak-auditory-icon 'select-object))
           (emacspeak-speak-line)))
     (signal 'end-of-buffer nil)))
@@ -234,11 +234,11 @@ The second argument provides alist of predefined values."
   (interactive)
   (if (or catalogue-record-wraparound
           (> (count-lines (point-min) (point)) 1))
-      (let ((prev dbf-this-field-index))
+      (let ((prev (edb--S :this-fidx)))
         (db-previous-line-or-field 1)
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (unless (= prev dbf-this-field-index)
+          (unless (= prev (edb--S :this-fidx))
             (emacspeak-auditory-icon 'select-object))
           (emacspeak-speak-line)))
     (signal 'beginning-of-buffer nil)))

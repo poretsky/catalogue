@@ -1,37 +1,13 @@
+;;; -*- emacs-lisp -*-
 (require 'catalogue-view)
-(database-set-print-name database "Media collection catalogue")
-(database-set-fieldnames-to-list database
-                                 '((id . one-line-string)
-                                   (name . one-line-string)
-                                   (category . one-line-string)
-                                   (set . integer)
-                                   (unit . integer)
-                                   (media . one-line-string)
-                                   (owner . one-line-string-or-nil)
-                                   (borrower . one-line-string-or-nil)
-                                   (since . one-line-string-or-nil)
-                                   (place . one-line-string)
-                                   description))
-(database-set-field-priorities database
-                               (list
-                                (list
-                                 (cons
-                                  (fieldname->fieldnumber 'category database)
-                                  'increasing)
-                                 (cons
-                                  (fieldname->fieldnumber 'name database)
-                                  'increasing)
-                                 (cons
-                                  (fieldname->fieldnumber 'unit database)
-                                  'increasing))))
-(db-set-field-help 'name "Must be non-empty textual string identifying the item." database)
-(db-set-field-help 'category "Must be non-empty textual string characterizing content category." database)
-(db-set-field-help 'unit "Must be positive non-zero integer value." database)
-(db-set-field-help 'set "Must be positive non-zero integer value." database)
-(db-set-field-help 'media "The correct value is usually automatically suggested for disks, but may be edited manually." database)
-(db-set-field-help 'owner "Should be filled only for alien items." database)
-(db-set-field-help 'place "One string placement description in free form." database)
-(db-set-field-help 'description "Multiline content description in free form" database)
+(db-set-field-help database 'name "Must be non-empty textual string identifying the item."
+                   'category "Must be non-empty textual string characterizing content category."
+                   'unit "Must be positive non-zero integer value."
+                   'set "Must be positive non-zero integer value."
+                   'media "The correct value is usually automatically suggested for disks, but may be edited manually."
+                   'owner "Should be filled only for alien items."
+                   'place "One string placement description in free form."
+                   'description "Multiline content description in free form")
 (setq catalogue-display-format-path
       (list (expand-file-name (catalogue-language) (file-name-directory load-file-name))
             (directory-file-name (file-name-directory load-file-name))))

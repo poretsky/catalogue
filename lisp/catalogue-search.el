@@ -43,6 +43,13 @@
 
 ;; Utility functions:
 
+(defun catalogue-goto-field (fname)
+  "Go to specified field by it's name."
+  (db-last-field)
+  (while (not (or (eq (dbf-this-field-name (edb--S :this-ds)) fname)
+                  (zerop (edb--S :this-fidx))))
+    (db-previous-field 1)))
+
 (defun catalogue-searchable-fields ()
   "Get list of searchable fields."
   (unless catalogue-searchable-fields-list
@@ -52,7 +59,7 @@
       (while
           (progn
             (push (symbol-name (dbf-this-field-name (edb--S :this-ds))) catalogue-searchable-fields-list)
-            (not (zerop dbf-this-field-index)))
+            (not (zerop (edb--S :this-fidx))))
         (db-previous-field 1))
       (db-view-mode)
       (db-next-record 0)))
@@ -77,24 +84,24 @@ search is performed by the name and description fields in conjunction."
     (with-current-buffer (catalogue-operational-buffer)
       (db-unmark-all)
       (if (null field)
-          (let ((original-position dbc-index)
+          (let ((original-position (catalogue-index))
                 (first-hit))
-            (db-move-to-field-exact (dbf-fieldname->displayspecno 'name))
+            (catalogue-goto-field 'name)
             (db-search-field pattern t)
-            (setq first-hit dbc-index)
+            (setq first-hit (catalogue-index))
             (db-jump-to-record original-position)
-            (db-move-to-field-exact (dbf-fieldname->displayspecno 'description))
+            (catalogue-goto-field 'description)
             (db-search-field pattern t)
-            (if (= original-position dbc-index)
-                (unless (= dbc-index first-hit)
+            (if (= original-position (catalogue-index))
+                (unless (= (catalogue-index) first-hit)
                   (db-jump-to-record first-hit))
               (unless (= original-position first-hit)
                 (when (or (and (< original-position first-hit)
-                               (< first-hit dbc-index))
+                               (< first-hit (catalogue-index)))
                           (and (< original-position first-hit)
-                               (< dbc-index original-position))
-                          (and (< dbc-index original-position)
-                               (< first-hit dbc-index)))
+                               (< (catalogue-index) original-position))
+                          (and (< (catalogue-index) original-position)
+                               (< first-hit (catalogue-index))))
                   (db-jump-to-record first-hit)))))
         (db-first-field)
         (do ((fields (catalogue-searchable-fields) (cdr fields)))
@@ -103,7 +110,7 @@ search is performed by the name and description fields in conjunction."
           (db-next-field 1))
         (db-search-field pattern t))
       (and (setq hits (catalogue-find-marked-records))
-           (setq hit-index dbc-index)
+           (setq hit-index (catalogue-index))
            (db-unmark-all)))
     (when (and (db-summary-buffer-p) marked-only hits marked-items)
       (let ((filtered nil))
