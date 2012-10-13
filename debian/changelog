@@ -1,3 +1,10 @@
+catalogue (2.7) unstable; urgency=low
+
+  * Use cd-discid utility as a fallback for audio CD identification when
+    cd-info doesn't do the job.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Sat, 13 Oct 2012 16:51:26 +0400
+
 catalogue (2.6) unstable; urgency=low
 
   * Fixed cooperation with edb version used in recent Debian and Ubuntu
