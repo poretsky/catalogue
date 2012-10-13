@@ -57,25 +57,24 @@ specific items should be placed before the general ones.")
 (defun catalogue-find-hole ()
   "Find non-complete item set and return draft of new record
 or nil if no one is found."
-  (declare (special first-link))
   (let ((draft nil)
         (name "")
         (category ""))
-    (maprecords
-     (lambda (record)
-       (let ((hole
-              (and (> (record-field record 'set dbc-database) 1)
-                   (not (string= name (record-field record 'name dbc-database)))
-                   (not (string= category (record-field record 'category dbc-database)))
-                   (catalogue-find-hole-in-item-set record))))
-         (if (not hole)
-             (setq name (record-field record 'name dbc-database)
-                   category (record-field record 'category dbc-database))
-           (setq draft (copy-record record))
-           (record-set-field draft 'unit hole dbc-database)
-           (maprecords-break))))
-     dbc-database)
-    draft))
+    (catch t
+      (db-maprecords
+       (lambda (record)
+         (let ((hole
+                (and (> (db-record-field record 'set dbc-database) 1)
+                     (not (string= name (db-record-field record 'name dbc-database)))
+                     (not (string= category (db-record-field record 'category dbc-database)))
+                     (catalogue-find-hole-in-item-set record))))
+           (if (not hole)
+               (setq name (db-record-field record 'name dbc-database)
+                     category (db-record-field record 'category dbc-database))
+             (setq draft (copy-sequence record))
+             (db-record-set-field draft 'unit hole dbc-database)
+             (throw t draft)))))
+      nil)))
 
 (defun catalogue-disk-info-extract (selector)
   "Extract value by selector regexp from cd-info output."
@@ -91,7 +90,6 @@ and record draft with filled id and media type in cdr.
 For audio disks the category field is set too and, in the case of
 CD-text information presence, name and description might be filled as well.
 For data disks the name is also preliminary set by the way."
-  (declare (special first-link))
   (unless (zerop (call-process "which" nil nil nil "cd-info"))
     (error "This functionality is unavailable without cd-info utility"))
   (cond
@@ -100,23 +98,33 @@ For data disks the name is also preliminary set by the way."
    ((zerop (call-process "which" nil nil nil "cdclose"))
     (call-process "cdclose" nil nil nil "-d" catalogue-cd-dvd-device))
    (t (error "This functionality is unavailable without eject or cdclose utility")))
-  (let ((draft (make-record dbc-database))
-        (database dbc-database)
-        (found nil))
+  (let ((draft (db-make-record dbc-database (catalogue-record-init)))
+        (database dbc-database))
     (with-temp-buffer
       (unless (zerop (call-process "cd-info" nil t nil
                                    "-q" "-I" "--no-header" "--dvd" "--no-device-info"
                                    "--iso9660" "-C" catalogue-cd-dvd-device))
         (error "No disk inserted or you have no access to %s" catalogue-cd-dvd-device))
-      (record-set-field
+      (db-record-set-field
        draft 'id
        (catalogue-disk-info-extract "^Audio CD, CDDB disc ID is +\\(.*\\)$")
        database)
-      (record-set-field
+      (db-record-set-field
        draft 'media
        (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
        database)
-      (if (null (record-field draft 'id database))
+      (when (and (null (db-record-field draft 'id database))
+                 (string-equal (db-record-field draft 'media database) "CD-DA"))
+        (unless (zerop (call-process "which" nil nil nil "cd-discid"))
+          (error "It seems that you lack cd-discid utility required for audio disk identification"))
+        (let* ((info (shell-command-to-string (concat "cd-discid " catalogue-cd-dvd-device)))
+               (idlen (string-match " " info)))
+          (when idlen
+            (db-record-set-field
+             draft 'id
+             (substring info 0 idlen)
+             database))))
+      (if (null (db-record-field draft 'id database))
           (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
                 (listing nil))
             (unless volume-id
@@ -126,13 +134,13 @@ For data disks the name is also preliminary set by the way."
               (let ((lsn (match-string 1))
                     (size (match-string 2)))
                 (push (cons (string-to-number lsn) (concat lsn ":" size)) listing)))
-            (record-set-field draft 'name volume-id database)
+            (db-record-set-field draft 'name volume-id database)
             (mapc
              (lambda (item)
                (setq volume-id (concat volume-id ";" (cdr item))))
              (sort listing 'car-less-than-car))
-            (record-set-field draft 'id (md5 volume-id) database))
-        (record-set-field
+            (db-record-set-field draft 'id (md5 volume-id) database))
+        (db-record-set-field
          draft 'category
          (catalogue-language-string catalogue-category-names-alist 'music)
          database)
@@ -173,22 +181,23 @@ For data disks the name is also preliminary set by the way."
               (mapc
                (lambda (item)
                  (if (zerop (car item))
-                     (record-set-field draft 'name (cdr item) database)
+                     (db-record-set-field draft 'name (cdr item) database)
                    (setq description
                          (concat
                           description
                           (format "%d. %s\n" (car item) (cdr item))))))
                (nreverse toc))
-              (record-set-field draft 'description description database))))))
-    (maprecords
-     (lambda (record)
-       (when (string=
-              (record-field draft 'id  database)
-              (record-field record 'id database))
-         (setq found maplinks-index)
-         (maprecords-break)))
-     database)
-    (cons found draft)))
+              (db-record-set-field draft 'description description database))))))
+    (cons
+     (catch t
+       (db-maprecords
+        (lambda (record)
+          (when (string=
+                 (db-record-field draft 'id  database)
+                 (db-record-field record 'id database))
+            (throw t db-lmap-index))))
+       nil)
+     draft)))
 
 (defun catalogue-guess-cdda-info (draft)
   "Try to fetch some information for currently inserted audio CD using cdir
@@ -197,7 +206,7 @@ utility and fill name, category and description in the specified blank."
     (with-temp-buffer
       (unless (zerop (call-process "cdir" nil t))
         (error "No audio disk inserted or you have no access to %s" catalogue-cd-dvd-device))
-      (let ((cd-text-info (record-field draft 'description database))
+      (let ((cd-text-info (db-record-field draft 'description database))
             (index 0)
             (toc nil)
             (name "")
@@ -229,10 +238,10 @@ utility and fill name, category and description in the specified blank."
         (when (looking-at "^\\(.*?\\) +- +\\([0-9]+:[0-9]+ +in +[0-9]+ +tracks\\)$")
           (setq name (match-string 1)
                 description (concat (match-string 2) "\n")))
-        (when (or (catalogue-string-empty-p (record-field draft 'name database))
+        (when (or (catalogue-string-empty-p (db-record-field draft 'name database))
                   (not (or (catalogue-string-empty-p name)
                            (string= "unknown cd" name))))
-          (record-set-field draft 'name name database))
+          (db-record-set-field draft 'name name database))
         (mapc
          (lambda (item)
            (setq description
@@ -240,7 +249,7 @@ utility and fill name, category and description in the specified blank."
                   description
                   (format "%d. %s\n" (car item) (cdr item)))))
          (nreverse toc))
-        (record-set-field draft 'description description database)))))
+        (db-record-set-field draft 'description description database)))))
 
 (defun catalogue-guess-data-disk-info (draft)
   "Try to guess category for a data disk and fill
@@ -377,13 +386,13 @@ And the name field also might be corrected."
                (setq description (concat description item "\n")))
              (sort content 'string<))))))
     (when (> (length title)
-             (length (record-field draft 'name dbc-database)))
-      (record-set-field draft 'name title dbc-database))
-    (record-set-field
+             (length (db-record-field draft 'name dbc-database)))
+      (db-record-set-field draft 'name title dbc-database))
+    (db-record-set-field
      draft 'category
      (catalogue-language-string catalogue-category-names-alist category)
      dbc-database)
-    (record-set-field draft 'description description dbc-database)))
+    (db-record-set-field draft 'description description dbc-database)))
 
 
 ;; Interactive commands:
@@ -416,7 +425,7 @@ but not committed. This draft can be further edited or deleted."
             (if (db-summary-buffer-p)
                 (emacspeak-speak-line)
               (emacspeak-speak-current-window))))
-      (if (record-field (setq disk-info (cdr disk-info)) 'category dbc-database)
+      (if (db-record-field (setq disk-info (cdr disk-info)) 'category dbc-database)
           (when (and catalogue-use-cdtool-database
                      (zerop (call-process "which" nil nil nil "cdir")))
             (catalogue-guess-cdda-info disk-info))
@@ -426,15 +435,15 @@ but not committed. This draft can be further edited or deleted."
             (let ((hole (catalogue-find-hole)))
               (when hole
                 (setq draft hole
-                      found (record-field draft 'unit dbc-database)))))
+                      found (db-record-field draft 'unit dbc-database)))))
         (setq draft (catalogue-find-hole)
-              found (and draft (record-field draft 'unit dbc-database))))
+              found (and draft (db-record-field draft 'unit dbc-database))))
       (setq catalogue-unknown-disk t)
       (if (db-data-display-buffer-p)
-          (setq catalogue-restore-summary (dbf-summary-buffer))
+          (setq catalogue-restore-summary (catalogue-summary-buffer))
         (dbs-exit)
         (setq catalogue-restore-summary t))
-      (dbf-kill-summary)
+      (catalogue-kill-summary)
       (if (not (catalogue-empty-p))
           (db-add-record)
         (db-add-record)
@@ -442,20 +451,20 @@ but not committed. This draft can be further edited or deleted."
         (db-delete-record t))
       (dbf-set-this-record-modified-p t)
       (if found
-          (copy-record-to-record draft (dbf-displayed-record))
+          (db-copy-r2r draft (dbf-displayed-record))
         (dbf-displayed-record-set-field 'set 1)
         (dbf-displayed-record-set-field
-         'category (record-field disk-info 'category dbc-database))
+         'category (db-record-field disk-info 'category dbc-database))
         (dbf-displayed-record-set-field
-         'name (or (record-field disk-info 'name dbc-database) "")))
-      (unless (catalogue-string-empty-p (record-field disk-info 'description dbc-database))
+         'name (or (db-record-field disk-info 'name dbc-database) "")))
+      (unless (catalogue-string-empty-p (db-record-field disk-info 'description dbc-database))
         (dbf-displayed-record-set-field
-         'description (record-field disk-info 'description dbc-database)))
+         'description (db-record-field disk-info 'description dbc-database)))
       (dbf-displayed-record-set-field 'unit (or found 1))
       (dbf-displayed-record-set-field
-       'media (record-field disk-info 'media dbc-database))
+       'media (db-record-field disk-info 'media dbc-database))
       (dbf-displayed-record-set-field-and-redisplay
-       'id (record-field disk-info 'id dbc-database))
+       'id (db-record-field disk-info 'id dbc-database))
       (db-view-mode)
       (when (and (featurep 'emacspeak)
                  (interactive-p))
@@ -473,7 +482,7 @@ but not committed. This draft can be further edited or deleted."
                 (yes-or-no-p "This disk is already registered. Are you sure? "))
         (when (car disk-info)
           (with-current-buffer (catalogue-operational-buffer)
-            (let ((original-index dbc-index))
+            (let ((original-index (catalogue-index)))
               (db-jump-to-record (car disk-info))
               (dbf-set-this-record-modified-p t)
               (dbf-displayed-record-set-field 'id catalogue-no-id)
@@ -481,9 +490,9 @@ but not committed. This draft can be further edited or deleted."
           (catalogue-synchronize-with catalogue-operational-buffer))
         (dbf-set-this-record-modified-p t)
         (dbf-displayed-record-set-field
-         'media (record-field (cdr disk-info) 'media dbc-database))
+         'media (db-record-field (cdr disk-info) 'media dbc-database))
         (dbf-displayed-record-set-field-and-redisplay
-         'id (record-field (cdr disk-info) 'id dbc-database))
+         'id (db-record-field (cdr disk-info) 'id dbc-database))
         (db-accept-record)
         (db-view-mode)
         (db-save-database)
@@ -496,7 +505,7 @@ but not committed. This draft can be further edited or deleted."
   (interactive)
   (unless (db-data-display-buffer-p)
     (error "Not in data display buffer"))
-  (unless (eq dbf-minor-mode 'view)
+  (unless (eq 'database-view-mode major-mode)
     (error "Not in viewing mode"))
   (unless catalogue-unknown-disk
     (error "Not a new disk"))

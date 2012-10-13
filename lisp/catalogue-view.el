@@ -30,6 +30,7 @@
 (require 'easymenu)
 (require 'database)
 (require 'catalogue)
+(require 'catalogue-util)
 
 
 ;;; Code:
@@ -43,7 +44,7 @@
 (defconst catalogue-resource-directory (expand-file-name "~/.catalogue/")
   "User database directory.")
 
-(defconst catalogue-db-file (expand-file-name "collection.dat" catalogue-resource-directory)
+(defconst catalogue-db-base-name "collection"
   "User database file.")
 
 (defconst catalogue-no-id "noid"
@@ -75,9 +76,39 @@
   "Open existing user database or create a fresh one."
   (unless (file-exists-p catalogue-resource-directory)
     (make-directory catalogue-resource-directory))
-  (let ((db-format-file-path catalogue-shared-resource-path)
+  (let ((db-file (expand-file-name (concat catalogue-db-base-name ".dat")
+                                   catalogue-resource-directory))
+        (aux-file (expand-file-name (concat catalogue-db-base-name ".dba")
+                                    catalogue-resource-directory))
+        (db-format-file-path catalogue-shared-resource-path)
         (db-aux-file-path catalogue-shared-resource-path))
-    (db-find-file catalogue-db-file)))
+    (unless (file-exists-p aux-file)
+      (with-temp-buffer
+        (insert ";;; -*- emacs-lisp -*-\n")
+        (insert "(require 'catalogue-view)\n")
+        (insert "(catalogue-db-setup)\n")
+        (write-file aux-file)))
+    (if (file-exists-p db-file)
+        (db-find-file db-file)
+      (let ((control-file (db-locate-readable-file-prefer-cwd
+                           catalogue-db-base-name
+                           catalogue-shared-resource-path
+                           '( ".edb"))))
+        (unless control-file
+          (error "No control info found for database creation"))
+        (edb-interact control-file db-file)
+        (db-toggle-internal-file-layout 1)))))
+
+(defun catalogue-db-setup ()
+  "Load system wide aux file."
+  (let ((aux-file
+         (let ((default-directory nil))
+           (db-locate-readable-file-prefer-cwd
+            catalogue-db-base-name
+            db-aux-file-path
+            db-aux-file-suffixes))))
+    (when aux-file
+      (load-file aux-file))))
 
 (defun catalogue-language ()
   "get current database language as a valid two-letter code."
@@ -95,7 +126,7 @@
 (defun catalogue-record-field-empty-p (field &optional record)
   "Check if specified field in displayed or specified record is empty."
   (catalogue-string-empty-p
-   (record-field (or record (dbf-displayed-record)) field dbc-database)))
+   (db-record-field (or record (dbf-displayed-record)) field dbc-database)))
 
 (defun catalogue-empty-p ()
   "Check if media catalogue database is empty."
@@ -118,12 +149,6 @@
   "Check if displayed or specified item is borrowed."
   (not (or (catalogue-native-p item) (catalogue-released-p item))))
 
-(defun catalogue-index ()
-  "Retrieve current record index in the database."
-  (if (db-summary-buffer-p)
-      dbs-index
-    dbc-index))
-
 (defun catalogue-this-record-field (fieldname)
   "Get field value by name from the current record.
 Works in summary buffer as well."
@@ -134,27 +159,26 @@ Works in summary buffer as well."
 
 (defun catalogue-summary-synch-position ()
   "Synchronize position in summary buffer if any."
-  (when (db-data-display-buffer-p)
-    (dbf-in-summary-buffer
-      (dbs-move-to-proper-record))))
+  (when (and (db-data-display-buffer-p)
+             (catalogue-summary-buffer))
+    (dbs-synch-summary-with-format)))
 
 (defun catalogue-find-hole-in-item-set (&optional item)
   "Search for a gap in the item set if any for specified or displayed record
 and return first free unit number in the item set or nil if the set is full."
   (setq catalogue-current-item-set 0)
   (let ((units nil)
-        (name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
-        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database)))
-    (maprecords
+        (name (db-record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (db-record-field (or item (dbf-displayed-record)) 'category dbc-database)))
+    (db-maprecords
      (lambda (record)
-       (when (and (string= name (record-field record 'name dbc-database))
-                  (string= category (record-field record 'category dbc-database))
-                  (or item (not (= maplinks-index dbc-index))))
-         (push (record-field record 'unit dbc-database) units)
+       (when (and (string= name (db-record-field record 'name dbc-database))
+                  (string= category (db-record-field record 'category dbc-database))
+                  (or item (not (= db-lmap-index (catalogue-index)))))
+         (push (db-record-field record 'unit dbc-database) units)
          (setq catalogue-current-item-set
-               (max (record-field record 'set dbc-database)
-                    catalogue-current-item-set))))
-     dbc-database)
+               (max (db-record-field record 'set dbc-database)
+                    catalogue-current-item-set)))))
     (do ((x (sort units '<) (cdr x))
          (i 1 (1+ i)))
         ((or (null x) (< i (car x)))
@@ -169,17 +193,16 @@ then the currently displayed one is used to identify the set,
 but it's unit number is not taken in account."
   (let ((amount
          (if item
-             (record-field item 'unit dbc-database)
+             (db-record-field item 'unit dbc-database)
            0))
-        (name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
-        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database)))
-    (maprecords
+        (name (db-record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (db-record-field (or item (dbf-displayed-record)) 'category dbc-database)))
+    (db-maprecords
      (lambda (record)
-       (and (string= name (record-field record 'name dbc-database))
-            (string= category (record-field record 'category dbc-database))
-            (not (= maplinks-index dbc-index))
-            (setq amount (max (record-field record 'unit dbc-database) amount))))
-     dbc-database)
+       (and (string= name (db-record-field record 'name dbc-database))
+            (string= category (db-record-field record 'category dbc-database))
+            (not (= db-lmap-index (catalogue-index)))
+            (setq amount (max (db-record-field record 'unit dbc-database) amount)))))
     amount))
 
 (defun catalogue-new-unit ()
@@ -193,39 +216,36 @@ correcting the `set' field. Return a number of added unit."
 (defun catalogue-item-unique-p (&optional item)
   "Check whether the current item is unique by name, category and unit number.
 If item is specified explicitly it is checked as it was the current one."
-  (declare (special first-link))
-  (let ((name (record-field (or item (dbf-displayed-record)) 'name dbc-database))
-        (category (record-field (or item (dbf-displayed-record)) 'category dbc-database))
-        (unit (record-field (or item (dbf-displayed-record)) 'unit dbc-database))
-        (flag t))
-    (maprecords
-     (lambda (record)
-       (when (and (string= name (record-field record 'name dbc-database))
-                  (string= category (record-field record 'category dbc-database))
-                  (= unit (record-field record 'unit dbc-database))
-                  (not (= maplinks-index dbc-index)))
-         (setq flag nil)
-         (maprecords-break)))
-     dbc-database)
-    flag))
+  (let ((name (db-record-field (or item (dbf-displayed-record)) 'name dbc-database))
+        (category (db-record-field (or item (dbf-displayed-record)) 'category dbc-database))
+        (unit (db-record-field (or item (dbf-displayed-record)) 'unit dbc-database)))
+    (catch t
+      (db-maprecords
+       (lambda (record)
+         (when (and (string= name (db-record-field record 'name dbc-database))
+                    (string= category (db-record-field record 'category dbc-database))
+                    (= unit (db-record-field record 'unit dbc-database))
+                    (not (= db-lmap-index (catalogue-index))))
+           (throw t nil))))
+      t)))
 
 (defun catalogue-check-entry ()
   "Check currently editing  entry correctness
 and issue corresponding error if needed."
-  (let ((item (copy-record (dbf-displayed-record)))
-        (field  (dbf-this-field-name (edb--S :this-ds)))
+  (let ((item (copy-sequence (dbf-displayed-record)))
+        (field  (catalogue-this-field-name))
         (suggest ", fix it first or discard changes"))
     (cond
      ((or (eq field 'name) (eq field 'category))
-      (record-set-field
+      (db-record-set-field
        item field
-       (buffer-substring (dbf-this-field-beginning-pos) (dbf-this-field-end-pos))
+       (dbf-this-field-text)
        dbc-database))
      ((or (eq field 'unit) (eq field 'set))
-      (record-set-field
+      (db-record-set-field
        item field
        (string-to-number
-        (buffer-substring (dbf-this-field-beginning-pos) (dbf-this-field-end-pos)))
+        (dbf-this-field-text))
        dbc-database))
      (t nil))
     (when (catalogue-record-field-empty-p 'name item)
@@ -234,10 +254,10 @@ and issue corresponding error if needed."
       (error "Empty category is not allowed%s" suggest))
     (unless (catalogue-item-unique-p item)
       (error "Duplicate entry%s" suggest))
-    (when (< (record-field item 'unit dbc-database) 1)
+    (when (< (db-record-field item 'unit dbc-database) 1)
       (error "Unit number must be > 0%s" suggest))
     (let ((amount (catalogue-count-set-amount item)))
-      (when (< (record-field item 'set dbc-database) amount)
+      (when (< (db-record-field item 'set dbc-database) amount)
         (error "This set consists at least of %d units%s" amount suggest)))))
 
 
@@ -247,9 +267,8 @@ and issue corresponding error if needed."
   "Setup media catalogue database."
   (declare (special catalogue-view-map))
   (setq catalogue-unknown-disk nil)
-  (unless (file-exists-p catalogue-db-file)
-    (db-toggle-internal-file-layout t))
-  (use-local-map catalogue-view-map))
+  (use-local-map catalogue-view-map)
+  (remove-hook 'db-after-read-hooks 'catalogue-setup))
 
 (defun catalogue-view-setup ()
   "Setup view mode."
@@ -278,7 +297,7 @@ and issue corresponding error if needed."
      ((string= catalogue-operational-buffer-name (buffer-name))
       (db-change-format "operational"))
      (catalogue-editing-p
-      (let ((affected (assoc dbc-index catalogue-affected-set)))
+      (let ((affected (assoc (catalogue-index) catalogue-affected-set)))
         (when affected
           (dbf-displayed-record-set-field 'set (cdr affected))))
       (db-change-format "edit"))
@@ -300,7 +319,7 @@ and issue corresponding error if needed."
 
 (defun catalogue-initialize-record (record database)
   "Initialize newly created record."
-  (record-set-field record 'id catalogue-no-id database))
+  (db-record-set-field record 'id catalogue-no-id database))
 
 (defun catalogue-validate-field-change (field old new)
   "Validate mandatory fields change. Intended for field change hook."
@@ -358,19 +377,18 @@ and issue corresponding error if needed."
   "Some catalogue specific actions concerning record commitment."
   (unless (string= catalogue-operational-buffer-name (buffer-name))
     (setq catalogue-unknown-disk nil)
-    (let ((name (record-field record 'name dbc-database))
-          (category (record-field record 'category dbc-database))
-          (amount (record-field record 'set dbc-database)))
-      (maprecords
+    (let ((name (db-record-field record 'name dbc-database))
+          (category (db-record-field record 'category dbc-database))
+          (amount (db-record-field record 'set dbc-database)))
+      (db-maprecords
        (lambda (record)
-         (when (and (string= name (record-field record 'name dbc-database))
-                    (string= category (record-field record 'category dbc-database))
-                    (not (= maplinks-index dbc-index)))
-           (let ((listed (assoc maplinks-index catalogue-affected-set)))
+         (when (and (string= name (db-record-field record 'name dbc-database))
+                    (string= category (db-record-field record 'category dbc-database))
+                    (not (= db-lmap-index (catalogue-index))))
+           (let ((listed (assoc db-lmap-index catalogue-affected-set)))
              (if listed
                  (setcdr listed amount)
-               (push (cons maplinks-index amount) catalogue-affected-set)))))
-       dbc-database))))
+               (push (cons db-lmap-index amount) catalogue-affected-set)))))))))
 
 
 ;;; Interactive commands:
@@ -397,24 +415,22 @@ and issue corresponding error if needed."
   "Go to the next catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the next item set."
   (interactive "P")
-  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-      (when (eq dbf-minor-mode 'edit)
+      (when (eq 'database-edit-mode major-mode)
         (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) (database-no-of-records dbc-database)))
       (signal 'end-of-catalogue nil)
     (if arg
-        (let ((name (catalogue-this-record-field 'name))
-              (found nil))
-          (maprecords
-           (lambda (record)
-             (and (> maplinks-index (catalogue-index))
-                  (not (string= (record-field record 'name dbc-database) name))
-                  (setq found maplinks-index)
-                  (maprecords-break)))
-           dbc-database)
+        (let* ((name (catalogue-this-record-field 'name))
+               (found (catch t
+                        (db-maprecords
+                         (lambda (record)
+                           (and (> db-lmap-index (catalogue-index))
+                                (not (string= (db-record-field record 'name dbc-database) name))
+                                (throw t db-lmap-index))))
+                        nil)))
           (if found
               (db-jump-to-record found)
             (if catalogue-database-wraparound
@@ -430,20 +446,18 @@ With prefix argument jumps to the next item set."
 (defun catalogue-next-category ()
   "Jump to the next category wrapping around the database if enabled."
   (interactive)
-  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-      (when (eq dbf-minor-mode 'edit)
+      (when (eq 'database-edit-mode major-mode)
         (catalogue-check-entry))))
-  (let ((category (catalogue-this-record-field 'category))
-        (found nil))
-    (maprecords
-     (lambda (record)
-       (and (> maplinks-index (catalogue-index))
-            (not (string= (record-field record 'category dbc-database) category))
-            (setq found maplinks-index)
-            (maprecords-break)))
-     dbc-database)
+  (let* ((category (catalogue-this-record-field 'category))
+         (found (catch t
+                  (db-maprecords
+                   (lambda (record)
+                     (and (> db-lmap-index (catalogue-index))
+                          (not (string= (db-record-field record 'category dbc-database) category))
+                          (throw t db-lmap-index))))
+                  nil)))
     (if found
         (db-jump-to-record found)
       (if catalogue-database-wraparound
@@ -462,10 +476,9 @@ With prefix argument jumps to the next item set."
   "Go to the previous catalogue record wrapping around the database if enabled.
 With prefix argument jumps to the previous item set."
   (interactive "P")
-  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-      (when (eq dbf-minor-mode 'edit)
+      (when (eq 'database-edit-mode major-mode)
         (catalogue-check-entry))))
   (if (and (not catalogue-database-wraparound)
            (= (catalogue-index) 1))
@@ -475,17 +488,17 @@ With prefix argument jumps to the previous item set."
                (prev name)
                (new name)
                (found nil))
-          (maprecords
-           (lambda (record)
-             (setq new (record-field record 'name dbc-database))
-             (if (and (not catalogue-database-wraparound)
-                      (or (>= maplinks-index (catalogue-index))
-                          (string= new name)))
-                 (maprecords-break)
-               (unless (string= prev new)
-                 (setq found maplinks-index
-                       prev new))))
-           dbc-database)
+          (catch t
+            (db-maprecords
+             (lambda (record)
+               (setq new (db-record-field record 'name dbc-database))
+               (if (and (not catalogue-database-wraparound)
+                        (or (>= db-lmap-index (catalogue-index))
+                            (string= new name)))
+                   (throw t nil)
+                 (unless (string= prev new)
+                   (setq found db-lmap-index
+                         prev new))))))
           (if found
               (db-jump-to-record found)
             (if catalogue-database-wraparound
@@ -501,26 +514,25 @@ With prefix argument jumps to the previous item set."
 (defun catalogue-previous-category ()
   "Jump to the previous category wrapping around the database if enabled."
   (interactive)
-  (declare (special first-link))
   (when catalogue-editing-p
     (db-in-data-display-buffer
-      (when (eq dbf-minor-mode 'edit)
+      (when (eq 'database-edit-mode major-mode)
         (catalogue-check-entry))))
   (let* ((category (catalogue-this-record-field 'category))
          (prev category)
          (new category)
          (found nil))
-    (maprecords
-     (lambda (record)
-       (setq new (record-field record 'category dbc-database))
-       (if (and (not catalogue-database-wraparound)
-                (or (>= maplinks-index (catalogue-index))
-                    (string= new category)))
-           (maprecords-break)
-         (unless (string= prev new)
-           (setq found maplinks-index
-                 prev new))))
-     dbc-database)
+    (catch t
+      (db-maprecords
+       (lambda (record)
+         (setq new (db-record-field record 'category dbc-database))
+         (if (and (not catalogue-database-wraparound)
+                  (or (>= db-lmap-index (catalogue-index))
+                      (string= new category)))
+             (throw t nil)
+           (unless (string= prev new)
+             (setq found db-lmap-index
+                   prev new))))))
     (if found
         (db-jump-to-record found)
       (if catalogue-database-wraparound
@@ -535,11 +547,9 @@ With prefix argument jumps to the previous item set."
 (defun catalogue-exit ()
   "Exit catalogue and kill all it's buffers."
   (interactive)
-  (mapc
-   (lambda (buffer)
-     (with-current-buffer buffer
-       (db-exit t)))
-   (database-data-display-buffers dbc-database))
+  (when (buffer-live-p catalogue-operational-buffer)
+    (kill-buffer catalogue-operational-buffer))
+  (db-exit t)
   (when (and (featurep 'emacspeak)
              (interactive-p))
     (emacspeak-auditory-icon 'close-object)
