@@ -42,10 +42,59 @@ When it contains `t' the summary window becomes active.")
   "Invisible buffer for internal use.")
 
 
+(defun catalogue-record-init ()
+  "Return null record initializer."
+  '(:alist
+    (id . "")
+    (name . "")
+    (category . "")
+    (set . 0)
+    (unit . 0)
+    (media . "")
+    (owner . nil)
+    (borrower . nil)
+    (since . nil)
+    (place . "")
+    (description . "")))
+
+(defun catalogue-index ()
+  "Retrieve current record index in the database."
+  (edb--S :index))
+
+(defun catalogue-record-by-index (index)
+  "Get record by it's index."
+  (aref (edb-tag :vov dbc-database) (1- index)))
+
+(defun catalogue-this-field-name ()
+  "Return current field name as symbol."
+  (dbf-this-field-name (edb--S :this-ds)))
+
+(defun catalogue-this-field-index ()
+  "Get current field index in the displayspec."
+  (edb--S :this-fidx))
+
+(defun catalogue-marked-p (record)
+  "Yield true if specified record is marked."
+  (edb-tagp (edb-tag :markedp dbc-database) record))
+
+(defun catalogue-summary-buffer ()
+  "Return summary buffer if it exists or nil otherwise."
+  (let ((buf (edb--S :sumbuf)))
+    (and (bufferp buf)
+         (buffer-name buf)
+         buf)))
+
+(defun catalogue-kill-summary ()
+  "Kill summary buffer if it exists."
+  (let ((buf (catalogue-summary-buffer)))
+    (when buf
+      (delete-windows-on buf)
+      (kill-buffer buf))))
+
 (defun catalogue-synchronize-with (orig-buffer)
   "Synchronize current data display buffer with specified original."
   (db-copy-buffer-local-variables orig-buffer)
-  (setq dbf-this-record (make-record dbc-database))
+  (setq dbf-this-record (db-make-record dbc-database (catalogue-record-init)))
   (db-emergency-restore-format t))
 
 (defun catalogue-operational-buffer ()
@@ -58,9 +107,6 @@ data display buffer creating it if necessary."
           (database dbc-database))
       (unless (buffer-live-p catalogue-operational-buffer)
         (setq catalogue-operational-buffer (db-make-data-display-buffer database nil))
-        (database-set-data-display-buffers
-         database
-         (cons catalogue-operational-buffer (database-data-display-buffers database)))
         (with-current-buffer catalogue-operational-buffer
           (rename-buffer " *Catalogue workspace* " t)
           (setq catalogue-operational-buffer-name (buffer-name))))
@@ -75,7 +121,7 @@ to be deleted in the descending order. In this case all the work
 will be done in the operational buffer that will then be properly
 synchronized with current data display buffer."
   (if items
-      (let ((original-index dbc-index))
+      (let ((original-index (catalogue-index)))
         (with-current-buffer (catalogue-operational-buffer)
           (mapc
            (lambda (item)
@@ -115,23 +161,15 @@ should contain a list of record indexes to be processed."
     (db-next-record 0)
     (message "%d of %d items processed" processed to-process)))
 
-(defun catalogue-links-gather (link-predicate)
-  "Apply specified predicate to each record link and return
-list of indexes of satisfying ones in reverse order."
-  (let ((gathered nil))
-    (maplinks
-     (lambda (link)
-       (when (funcall link-predicate link)
-         (push maplinks-index gathered)))
-     dbc-database)
-    gathered))
-
-(defun catalogue-records-gather (record-predicate)
+(defun catalogue-records-gather (predicate)
   "Apply specified predicate to each record and return
 list of indexes of satisfying ones in reverse order."
-  (catalogue-links-gather
-   (lambda (link)
-     (funcall record-predicate (link-record link)))))
+  (let ((gathered nil))
+    (db-maprecords
+     (lambda (record)
+       (when (funcall predicate record)
+         (push db-lmap-index gathered))))
+    gathered))
 
 (defun catalogue-list-by (field content &optional unmatched)
   "Get list of record indexes where specified field is matched
@@ -140,8 +178,8 @@ Matching is done by `string='. Returned list is in the reverse order."
   (catalogue-records-gather
    (lambda (record)
      (if unmatched
-         (not (string= content (record-field record field dbc-database)))
-       (string= content (record-field record field dbc-database))))))
+         (not (string= content (db-record-field record field dbc-database)))
+       (string= content (db-record-field record field dbc-database))))))
 
 (defun catalogue-list-the-same (field)
   "Get list of record indexes with the same specified field content
@@ -155,12 +193,12 @@ which displayed record belongs to. Returned list is in the reverse order."
         (category (dbf-displayed-record-field 'category)))
     (catalogue-records-gather
      (lambda (record)
-       (and (string= name (record-field record 'name dbc-database))
-            (string= category (record-field record 'category dbc-database)))))))
+       (and (string= name (db-record-field record 'name dbc-database))
+            (string= category (db-record-field record 'category dbc-database)))))))
 
 (defun catalogue-find-marked-records ()
   "Get list of marked records indexes. Returned list is in the reverse order."
-  (catalogue-links-gather 'link-markedp))
+  (catalogue-records-gather 'catalogue-marked-p))
 
 
 ;;; That's all.
