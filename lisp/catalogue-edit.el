@@ -68,7 +68,7 @@
    (read-string
     "Input new value or try history: "
     nil history
-    (dbf-displayed-record-field (dbf-this-field-name (edb--S :this-ds)))
+    (dbf-displayed-record-field (catalogue-this-field-name))
     t)))
 
 (defun catalogue-edit-completing-input (collection history)
@@ -77,7 +77,7 @@
    (completing-read
     "Input with completions or try history: "
     collection nil nil nil history
-    (dbf-displayed-record-field (dbf-this-field-name (edb--S :this-ds)))
+    (dbf-displayed-record-field (catalogue-this-field-name))
     t)))
 
 (defun catalogue-known-field-values (field predefined)
@@ -220,11 +220,11 @@ The second argument provides alist of predefined values."
   (interactive)
   (if (or catalogue-record-wraparound
           (> (count-lines (point) (point-max)) 1))
-      (let ((prev (edb--S :this-fidx)))
+      (let ((prev (catalogue-this-field-index)))
         (db-next-line-or-field 1)
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (unless (= prev (edb--S :this-fidx))
+          (unless (= prev (catalogue-this-field-index))
             (emacspeak-auditory-icon 'select-object))
           (emacspeak-speak-line)))
     (signal 'end-of-buffer nil)))
@@ -234,11 +234,11 @@ The second argument provides alist of predefined values."
   (interactive)
   (if (or catalogue-record-wraparound
           (> (count-lines (point-min) (point)) 1))
-      (let ((prev (edb--S :this-fidx)))
+      (let ((prev (catalogue-this-field-index)))
         (db-previous-line-or-field 1)
         (when (and (featurep 'emacspeak)
                    (interactive-p))
-          (unless (= prev (edb--S :this-fidx))
+          (unless (= prev (catalogue-this-field-index))
             (emacspeak-auditory-icon 'select-object))
           (emacspeak-speak-line)))
     (signal 'beginning-of-buffer nil)))
@@ -247,7 +247,7 @@ The second argument provides alist of predefined values."
   "Input field content with history and completions if available
 or insert a new line in the multiline description."
   (interactive)
-  (let ((field (dbf-this-field-name (edb--S :this-ds))))
+  (let ((field (catalogue-this-field-name)))
     (if (eq field 'description)
         (call-interactively 'db-newline)
       (cond

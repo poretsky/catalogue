@@ -233,7 +233,7 @@ If item is specified explicitly it is checked as it was the current one."
   "Check currently editing  entry correctness
 and issue corresponding error if needed."
   (let ((item (copy-sequence (dbf-displayed-record)))
-        (field  (dbf-this-field-name (edb--S :this-ds)))
+        (field  (catalogue-this-field-name))
         (suggest ", fix it first or discard changes"))
     (cond
      ((or (eq field 'name) (eq field 'category))

@@ -46,8 +46,8 @@
 (defun catalogue-goto-field (fname)
   "Go to specified field by it's name."
   (db-last-field)
-  (while (not (or (eq (dbf-this-field-name (edb--S :this-ds)) fname)
-                  (zerop (edb--S :this-fidx))))
+  (while (not (or (eq (catalogue-this-field-name) fname)
+                  (zerop (catalogue-this-field-index))))
     (db-previous-field 1)))
 
 (defun catalogue-searchable-fields ()
@@ -58,8 +58,8 @@
       (db-last-field)
       (while
           (progn
-            (push (symbol-name (dbf-this-field-name (edb--S :this-ds))) catalogue-searchable-fields-list)
-            (not (zerop (edb--S :this-fidx))))
+            (push (symbol-name (catalogue-this-field-name)) catalogue-searchable-fields-list)
+            (not (zerop (catalogue-this-field-index))))
         (db-previous-field 1))
       (db-view-mode)
       (db-next-record 0)))

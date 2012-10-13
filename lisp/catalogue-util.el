@@ -65,6 +65,14 @@ When it contains `t' the summary window becomes active.")
   "Get record by it's index."
   (aref (edb-tag :vov dbc-database) (1- index)))
 
+(defun catalogue-this-field-name ()
+  "Return current field name as symbol."
+  (dbf-this-field-name (edb--S :this-ds)))
+
+(defun catalogue-this-field-index ()
+  "Get current field index in the displayspec."
+  (edb--S :this-fidx))
+
 (defun catalogue-marked-p (record)
   "Yield true if specified record is marked."
   (edb-tagp (edb-tag :markedp dbc-database) record))
