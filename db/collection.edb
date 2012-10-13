@@ -1,0 +1,33 @@
+:EDB (single) ;;; -*- emacs-lisp -*-
+
+:name "Media collection catalogue"
+
+:fields [(id . one-line-string)
+         (name . one-line-string)
+         (category . one-line-string)
+         (set . integer)
+         (unit . integer)
+         (media . one-line-string)
+         (owner . one-line-string-or-nil)
+         (borrower . one-line-string-or-nil)
+         (since . one-line-string-or-nil)
+         (place . one-line-string)
+         description]
+
+:field-order [(category . ascending)
+              (name . ascending)
+              (unit . ascending)]
+
+(require 'catalogue-util)
+:record-defaults 'catalogue-record-init
+
+:display t
+\name
+(\unit/\set)
+\category
+\media
+
+\place
+
+\description
+:EOTB

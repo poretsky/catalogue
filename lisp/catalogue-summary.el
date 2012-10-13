@@ -74,18 +74,17 @@ on it's original position and `nil' is returned."
           (first-hit))
       (when (and marked-only items)
         (db-unmark-all))
-      (maprecords
+      (db-maprecords
        (lambda (record)
          (when (and (funcall predicate record)
                     (or (not marked-only)
                         (null items)
-                        (member maplinks-index items)))
-           (db-select-record maplinks-index)
+                        (member db-lmap-index items)))
+           (db-select-record db-lmap-index)
            (db-mark-record 1)
            (when (zerop hits)
-             (setq first-hit maplinks-index))
-           (setq hits (1+ hits))))
-       dbc-database)
+             (setq first-hit db-lmap-index))
+           (setq hits (1+ hits)))))
       (message "%s hit%s found"
                (if (zerop hits)
                    "No"

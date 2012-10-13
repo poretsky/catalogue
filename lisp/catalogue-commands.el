@@ -237,7 +237,7 @@ is applied to the marked items if any or to the current one."
     (unless (zerop processed)
       (db-save-database)
       (if (catalogue-empty-p)
-          (dbf-kill-summary)
+          (catalogue-kill-summary)
         (dbf-fill-summary-buffer-and-move-to-proper-record))
       (when (interactive-p)
         (when (featurep 'emacspeak)
