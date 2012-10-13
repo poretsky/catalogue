@@ -113,6 +113,17 @@ For data disks the name is also preliminary set by the way."
        draft 'media
        (catalogue-disk-info-extract "^Disc mode is listed as: +\\(.*\\)")
        database)
+      (when (and (null (db-record-field draft 'id database))
+                 (string-equal (db-record-field draft 'media database) "CD-DA"))
+        (unless (zerop (call-process "which" nil nil nil "cd-discid"))
+          (error "It seems that you lack cd-discid utility required for audio disk identification"))
+        (let* ((info (shell-command-to-string (concat "cd-discid " catalogue-cd-dvd-device)))
+               (idlen (string-match " " info)))
+          (when idlen
+            (db-record-set-field
+             draft 'id
+             (substring info 0 idlen)
+             database))))
       (if (null (db-record-field draft 'id database))
           (let ((volume-id (catalogue-disk-info-extract "^ISO 9660: .* label +` *\\(.*?\\) *'$"))
                 (listing nil))
