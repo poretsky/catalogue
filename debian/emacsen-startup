@@ -15,10 +15,7 @@
 (let ((package-dir (concat "/usr/share/"
                            (symbol-name flavor)
                            "/site-lisp/catalogue")))
-;; If package-dir does not exist, the catalogue package must have
-;; removed but not purged, and we should skip the setup.
+  ;; If package-dir does not exist, the catalogue package must have
+  ;; been removed but not purged, and we should skip the setup.
   (when (file-directory-p package-dir)
-    ;; Make sure that the uncompiled files are also in the load-path, near the
-    ;; end.  This is for moving point to the code when view help.
-    (add-to-list 'load-path "/usr/share/emacs/site-lisp/catalogue" t)
     (load (expand-file-name "catalogue" package-dir) t)))
