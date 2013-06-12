@@ -1,3 +1,25 @@
+catalogue (2.7.1wheezy1) wheezy; urgency=low
+
+  * Per distribution build.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Wed, 12 Jun 2013 21:27:00 +0400
+
+catalogue (2.7.1precise1) precise; urgency=low
+
+  * Source directory is now not included into the load path, but
+    symlinks to the source files are preserved to make them available
+    from help view.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Tue, 30 Oct 2012 21:16:06 +0400
+
+catalogue (2.7.0precise1) precise; urgency=low
+
+  * Per distribution build.
+  * Lintian complaints satisfied.
+  * Bumped standards version to 3.9.3.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Sat, 13 Oct 2012 17:03:09 +0400
+
 catalogue (2.7) unstable; urgency=low
 
   * Use cd-discid utility as a fallback for audio CD identification when
