@@ -1,3 +1,12 @@
+catalogue (2.7.1xenial1) xenial; urgency=medium
+
+  * Added emacsen-compat file to prevent an error message during
+    installation.
+  * Bumped standards version to 3.9.7.
+  * Switch to dpkg-source 3.0 format.
+
+ -- Igor B. Poretsky <poretsky@mlbox.ru>  Thu, 27 Oct 2022 08:26:54 +0300
+
 catalogue (2.7.1precise1) precise; urgency=low
 
   * Source directory is now not included into the load path, but
